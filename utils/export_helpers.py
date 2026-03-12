@@ -1,6 +1,6 @@
 """
 Export Utility
-Helpers for exporting charts (PNG) and tables (PNG) for download.
+Helpers for exporting tables as PNG for download.
 """
 
 import io
@@ -8,22 +8,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-
-def chart_to_png(fig, width: int = 1200, height: int = 600, scale: int = 2) -> bytes:
-    """
-    Convert a Plotly figure to PNG bytes using kaleido.
-    """
-    # Use white-on-dark theme for the exported image
-    fig_copy = fig.to_dict()
-    import plotly.graph_objects as go
-    export_fig = go.Figure(fig_copy)
-    export_fig.update_layout(
-        paper_bgcolor="#0e1117",
-        plot_bgcolor="#0e1117",
-        font=dict(color="#e0e0e0"),
-    )
-    return export_fig.to_image(format="png", width=width, height=height, scale=scale)
 
 
 def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes:

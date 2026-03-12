@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_statistics, cross_tabulation
 from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations
 from utils.text_analysis import analyze_text_column, get_top_keywords
-from utils.export_helpers import chart_to_png, table_to_png
+from utils.export_helpers import table_to_png
 
 st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
 
@@ -116,7 +116,8 @@ for col_name, q_type in configured_cols.items():
                 )
                 fig_bar.update_layout(**PLOTLY_LAYOUT, showlegend=False)
                 fig_bar.update_traces(textposition="outside")
-                st.plotly_chart(fig_bar, use_container_width=True)
+                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
+                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config)
 
             with tab_pie:
                 fig_pie = px.pie(
@@ -126,19 +127,12 @@ for col_name, q_type in configured_cols.items():
                 )
                 fig_pie.update_layout(**PLOTLY_LAYOUT)
                 fig_pie.update_traces(textinfo="label+percent")
-                st.plotly_chart(fig_pie, use_container_width=True)
+                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2}}
+                st.plotly_chart(fig_pie, use_container_width=True, config=pie_config)
 
         # Export buttons
-        exp1, exp2, exp3 = st.columns(3)
+        exp1, exp2 = st.columns(2)
         with exp1:
-            try:
-                png_bytes = chart_to_png(fig_bar)
-                st.download_button("🖼️ Download Chart (PNG)", data=png_bytes,
-                                   file_name=f"{col_name}_bar_chart.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_chart_{col_name}")
-            except Exception:
-                pass
-        with exp2:
             try:
                 tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi")
                 st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
@@ -146,7 +140,7 @@ for col_name, q_type in configured_cols.items():
                                    use_container_width=True, key=f"dl_tbl_{col_name}")
             except Exception:
                 pass
-        with exp3:
+        with exp2:
             csv_data = result.to_csv(index=False)
             st.download_button("📄 Download Data (CSV)", data=csv_data,
                                file_name=f"{col_name}_analysis.csv", mime="text/csv",
@@ -180,19 +174,12 @@ for col_name, q_type in configured_cols.items():
             fig_scale.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
             fig_scale.update_traces(textposition="outside")
             fig_scale.update_xaxes(type="category")
-            st.plotly_chart(fig_scale, use_container_width=True)
+            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
+            st.plotly_chart(fig_scale, use_container_width=True, config=scale_config)
 
         # Export buttons
-        exp1, exp2, exp3 = st.columns(3)
+        exp1, exp2 = st.columns(2)
         with exp1:
-            try:
-                png_bytes = chart_to_png(fig_scale)
-                st.download_button("🖼️ Download Chart (PNG)", data=png_bytes,
-                                   file_name=f"{col_name}_scale_chart.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_chart_{col_name}")
-            except Exception:
-                pass
-        with exp2:
             try:
                 tbl_png = table_to_png(result, title=f"{col_name} — Distribusi Scale")
                 st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
@@ -200,7 +187,7 @@ for col_name, q_type in configured_cols.items():
                                    use_container_width=True, key=f"dl_tbl_{col_name}")
             except Exception:
                 pass
-        with exp3:
+        with exp2:
             csv_data = result.to_csv(index=False)
             st.download_button("📄 Download Data (CSV)", data=csv_data,
                                file_name=f"{col_name}_analysis.csv", mime="text/csv",
@@ -228,19 +215,12 @@ for col_name, q_type in configured_cols.items():
             )
             fig_multi.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
             fig_multi.update_traces(textposition="outside")
-            st.plotly_chart(fig_multi, use_container_width=True)
+            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
+            st.plotly_chart(fig_multi, use_container_width=True, config=multi_config)
 
         # Export buttons
-        exp1, exp2, exp3 = st.columns(3)
+        exp1, exp2 = st.columns(2)
         with exp1:
-            try:
-                png_bytes = chart_to_png(fig_multi)
-                st.download_button("🖼️ Download Chart (PNG)", data=png_bytes,
-                                   file_name=f"{col_name}_multi_chart.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_chart_{col_name}")
-            except Exception:
-                pass
-        with exp2:
             try:
                 tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi Jawaban")
                 st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
@@ -248,7 +228,7 @@ for col_name, q_type in configured_cols.items():
                                    use_container_width=True, key=f"dl_tbl_{col_name}")
             except Exception:
                 pass
-        with exp3:
+        with exp2:
             csv_data = result.to_csv(index=False)
             st.download_button("📄 Download Data (CSV)", data=csv_data,
                                file_name=f"{col_name}_analysis.csv", mime="text/csv",
@@ -278,21 +258,14 @@ for col_name, q_type in configured_cols.items():
             )
             fig_text.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
             fig_text.update_traces(textposition="outside")
-            st.plotly_chart(fig_text, use_container_width=True)
+            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
+            st.plotly_chart(fig_text, use_container_width=True, config=text_config)
 
             st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
 
         # Export buttons
-        exp1, exp2, exp3 = st.columns(3)
+        exp1, exp2 = st.columns(2)
         with exp1:
-            try:
-                png_bytes = chart_to_png(fig_text)
-                st.download_button("🖼️ Download Chart (PNG)", data=png_bytes,
-                                   file_name=f"{col_name}_keywords_chart.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_chart_{col_name}")
-            except Exception:
-                pass
-        with exp2:
             try:
                 tbl_png = table_to_png(top_kw, title=f"{col_name} — Top Keywords")
                 st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
@@ -300,7 +273,7 @@ for col_name, q_type in configured_cols.items():
                                    use_container_width=True, key=f"dl_tbl_{col_name}")
             except Exception:
                 pass
-        with exp3:
+        with exp2:
             csv_data = top_kw.to_csv(index=False)
             st.download_button("📄 Download Data (CSV)", data=csv_data,
                                file_name=f"{col_name}_keywords.csv", mime="text/csv",

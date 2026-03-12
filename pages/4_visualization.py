@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis
-from utils.export_helpers import chart_to_png, table_to_png
+from utils.export_helpers import table_to_png
 
 st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
 
@@ -168,13 +168,22 @@ if selected_col:
             fig = None
 
         if fig:
-            st.plotly_chart(fig, use_container_width=True)
+            # Custom filename for Plotly's built-in PNG download button
+            chart_config = {
+                "toImageButtonOptions": {
+                    "filename": f"{selected_col}_{chart_type.replace(' ', '_').lower()}",
+                    "width": 1200,
+                    "height": chart_height,
+                    "scale": 2,
+                },
+            }
+            st.plotly_chart(fig, use_container_width=True, config=chart_config)
 
             # Export options
             st.markdown("---")
             st.markdown("### 📥 Ekspor")
 
-            col_exp1, col_exp2, col_exp3, col_exp4 = st.columns(4)
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
 
             with col_exp1:
                 csv_data = result.to_csv(index=False)
@@ -197,19 +206,6 @@ if selected_col:
                 )
 
             with col_exp3:
-                try:
-                    png_bytes = chart_to_png(fig, width=1200, height=chart_height)
-                    st.download_button(
-                        "🖼️ Download Chart (PNG)",
-                        data=png_bytes,
-                        file_name=f"{selected_col}_chart.png",
-                        mime="image/png",
-                        use_container_width=True,
-                    )
-                except Exception as e:
-                    st.error(f"PNG export error: {e}")
-
-            with col_exp4:
                 try:
                     table_png = table_to_png(result, title=f"{selected_col} — {data_type.replace('_',' ').title()}")
                     st.download_button(
