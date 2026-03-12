@@ -5,3 +5,5 @@ wordcloud
 streamlit-aggrid
 openpyxl
 nltk
+kaleido
+matplotlib

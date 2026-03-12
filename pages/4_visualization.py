@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis
+from utils.export_helpers import chart_to_png, table_to_png
 
 st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
 
@@ -172,7 +173,9 @@ if selected_col:
             # Export options
             st.markdown("---")
             st.markdown("### 📥 Ekspor")
-            col_exp1, col_exp2 = st.columns(2)
+
+            col_exp1, col_exp2, col_exp3, col_exp4 = st.columns(4)
+
             with col_exp1:
                 csv_data = result.to_csv(index=False)
                 st.download_button(
@@ -182,6 +185,7 @@ if selected_col:
                     mime="text/csv",
                     use_container_width=True,
                 )
+
             with col_exp2:
                 html_data = fig.to_html(include_plotlyjs="cdn")
                 st.download_button(
@@ -191,6 +195,32 @@ if selected_col:
                     mime="text/html",
                     use_container_width=True,
                 )
+
+            with col_exp3:
+                try:
+                    png_bytes = chart_to_png(fig, width=1200, height=chart_height)
+                    st.download_button(
+                        "🖼️ Download Chart (PNG)",
+                        data=png_bytes,
+                        file_name=f"{selected_col}_chart.png",
+                        mime="image/png",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"PNG export error: {e}")
+
+            with col_exp4:
+                try:
+                    table_png = table_to_png(result, title=f"{selected_col} — {data_type.replace('_',' ').title()}")
+                    st.download_button(
+                        "📋 Download Tabel (PNG)",
+                        data=table_png,
+                        file_name=f"{selected_col}_table.png",
+                        mime="image/png",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"Table PNG export error: {e}")
 
         # Data table
         with st.expander("📋 Lihat Data Tabel"):
