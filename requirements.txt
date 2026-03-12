@@ -1,0 +1,7 @@
+streamlit
+pandas
+plotly
+wordcloud
+streamlit-aggrid
+openpyxl
+nltk
