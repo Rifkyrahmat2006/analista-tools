@@ -4,6 +4,7 @@ Handles multiple choice / checkbox question analysis.
 """
 
 import pandas as pd
+import streamlit as st
 
 
 def split_and_explode(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.Series:
@@ -44,3 +45,32 @@ def multi_choice_combinations(df: pd.DataFrame, column: str, delimiter: str = ",
     counts = normalized.value_counts().head(top_n).reset_index()
     counts.columns = ["Combination", "Count"]
     return counts
+
+
+@st.cache_data(show_spinner=False)
+def get_multiple_choice_preview(series: pd.Series, delimiter: str = ",") -> dict:
+    """
+    Extract answer options, count them, and group rare answers into 'Other'.
+    Cached for performance on large datasets.
+    """
+    exploded = series.dropna().astype(str).str.split(delimiter).explode()
+    exploded = exploded.str.strip()
+    exploded = exploded[exploded != ""]
+    
+    counts = exploded.value_counts()
+    total_responses = len(exploded)
+    
+    if total_responses == 0:
+        return {"main": [], "other": [], "other_count": 0}
+        
+    threshold = max(3, total_responses * 0.02)
+    
+    main_options = counts[counts >= threshold]
+    other_options = counts[counts < threshold]
+    
+    return {
+        "main": [(k, v) for k, v in main_options.items()],
+        "other": other_options.index.tolist(),
+        "other_count": len(other_options)
+    }
+

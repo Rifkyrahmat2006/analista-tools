@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_statistics, cross_tabulation
-from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations
+from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_statistics, cross_tabulation, get_single_choice_preview
+from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations, get_multiple_choice_preview
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
@@ -60,49 +60,87 @@ if "detected_types" not in st.session_state or st.session_state.get("_det_id") !
         st.session_state.detected_features[col] = analyze_column_features(df[col])
     st.session_state._det_id = id(df)
 
-# Show configuration in expander
-with st.expander("📋 Konfigurasi Kolom", expanded=True):
-    cols_per_row = 3
-    columns = df.columns.tolist()
+# Show configuration in a vertical block layout
+st.markdown("---")
 
-    for i in range(0, len(columns), cols_per_row):
-        row_cols = st.columns(cols_per_row)
-        for j, col_widget in enumerate(row_cols):
-            idx = i + j
-            if idx < len(columns):
-                col_name = columns[idx]
-                suggested = st.session_state.detected_types.get(col_name, "skip")
-                default_idx = TYPE_OPTIONS.index(suggested) if suggested in TYPE_OPTIONS else 0
+for col_name in df.columns:
+    suggested = st.session_state.detected_types.get(col_name, "skip")
+    current_val = st.session_state.question_types.get(col_name, suggested)
+    default_idx = TYPE_OPTIONS.index(current_val) if current_val in TYPE_OPTIONS else 0
+    
+    with st.container():
+        # Block style header
+        c1, c2 = st.columns([3, 1])
+        
+        with c1:
+            st.markdown(f"#### {col_name}")
+            # Badge
+            badge_color = "#43e97b" if current_val == suggested else "#fa709a"
+            st.markdown(
+                f'<span style="background:{badge_color};color:#111;padding:2px 8px;'
+                f'border-radius:8px;font-size:0.75rem;">🤖 Suggested: {suggested}</span>',
+                unsafe_allow_html=True,
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Preview section based on currently selected type
+            if current_val == "multiple_choice":
+                st.caption("**Options Preview (Multiple Choice):**")
+                prev_data = get_multiple_choice_preview(df[col_name])
+                for opt, count in prev_data["main"]:
+                    st.markdown(f"• {opt} ({count})")
+                if prev_data["other_count"] > 0:
+                    st.markdown(f"• **Other** ({prev_data['other_count']})")
+                    with st.expander("Lihat Other responses"):
+                        for oth in prev_data["other"]:
+                            st.markdown(f"- {oth}")
+                            
+            elif current_val == "single_choice":
+                st.caption("**Options Preview (Single Choice):**")
+                prev_data = get_single_choice_preview(df[col_name])
+                for opt, count in prev_data["main"]:
+                    st.markdown(f"• {opt} ({count})")
+                if prev_data["other_count"] > 0:
+                    st.markdown(f"• **Other** ({prev_data['other_count']})")
+                    with st.expander("Lihat Other responses"):
+                        for oth in prev_data["other"]:
+                            st.markdown(f"- {oth}")
+                            
+            elif current_val == "scale":
+                st.caption("**Distribution Preview (Scale):**")
+                prev_data = df[col_name].value_counts().sort_index()
+                for val, count in prev_data.items():
+                    st.markdown(f"**{val}** &rarr; {count}")
+                    
+            elif current_val == "open_text":
+                st.caption("*Open Text - no options preview*")
+                
+            # Column Stats
+            feat = st.session_state.detected_features.get(col_name, {})
+            with st.expander("📊 Column Stats", expanded=False):
+                st.markdown(
+                    f"- **Total responses:** {df[col_name].count()}\n"
+                    f"- **Unique values:** {int(df[col_name].dropna().nunique())}\n"
+                    f"- **Null ratio:** {feat.get('null_ratio', 0)}\n"
+                    f"- **Delimiter ratio:** {feat.get('delimiter_ratio', 0)}\n"
+                    f"- **Numeric ratio:** {feat.get('numeric_ratio', 0)}\n"
+                    f"- **Avg text length:** {feat.get('avg_text_length', 0)}\n"
+                    f"- **Avg word count:** {feat.get('avg_word_count', 0)}"
+                )
 
-                with col_widget:
-                    q_type = st.selectbox(
-                        f"**{col_name}**",
-                        options=TYPE_OPTIONS,
-                        index=default_idx,
-                        key=f"qtype_{col_name}",
-                        help=f"Contoh data: {', '.join(str(v) for v in df[col_name].dropna().head(3).tolist())}",
-                    )
-                    st.session_state.question_types[col_name] = q_type
+        with c2:
+            st.selectbox(
+                "Tipe Pertanyaan",
+                options=TYPE_OPTIONS,
+                index=default_idx,
+                key=f"qtype_{col_name}",
+                label_visibility="collapsed"
+            )
+            # We must update session state immediately so the preview reflects the choice
+            st.session_state.question_types[col_name] = st.session_state[f"qtype_{col_name}"]
 
-                    # Suggestion badge
-                    badge_color = "#43e97b" if q_type == suggested else "#fa709a"
-                    st.markdown(
-                        f'<span style="background:{badge_color};color:#111;padding:2px 8px;'
-                        f'border-radius:8px;font-size:0.75rem;">🤖 Suggested: {suggested}</span>',
-                        unsafe_allow_html=True,
-                    )
-
-                    # Stats tooltip
-                    feat = st.session_state.detected_features.get(col_name, {})
-                    with st.expander("📊 Column Stats"):
-                        st.markdown(
-                            f"- **Unique values:** {int(df[col_name].dropna().nunique())}\n"
-                            f"- **Null ratio:** {feat.get('null_ratio', 0)}\n"
-                            f"- **Delimiter ratio:** {feat.get('delimiter_ratio', 0)}\n"
-                            f"- **Numeric ratio:** {feat.get('numeric_ratio', 0)}\n"
-                            f"- **Avg text length:** {feat.get('avg_text_length', 0)}\n"
-                            f"- **Avg word count:** {feat.get('avg_word_count', 0)}"
-                        )
+        st.markdown("---")
 
 st.markdown("---")
 

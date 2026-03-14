@@ -4,6 +4,7 @@ Handles single choice and scale analysis.
 """
 
 import pandas as pd
+import streamlit as st
 
 
 def single_choice_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
@@ -51,3 +52,33 @@ def cross_tabulation(df: pd.DataFrame, col1: str, col2: str) -> pd.DataFrame:
     Create a cross-tabulation between two columns.
     """
     return pd.crosstab(df[col1], df[col2], margins=True, margins_name="Total")
+
+
+@st.cache_data(show_spinner=False)
+def get_single_choice_preview(series: pd.Series) -> dict:
+    """
+    Extract answer options, count them, and group rare answers into 'Other'.
+    Cached for performance on large datasets.
+    """
+    counts = series.dropna().astype(str).str.strip().value_counts()
+    
+    # Remove empty strings if any
+    if "" in counts.index:
+        counts = counts.drop("")
+        
+    total_responses = counts.sum()
+    
+    if total_responses == 0:
+        return {"main": [], "other": [], "other_count": 0}
+        
+    threshold = max(3, total_responses * 0.02)
+    
+    main_options = counts[counts >= threshold]
+    other_options = counts[counts < threshold]
+    
+    return {
+        "main": [(k, v) for k, v in main_options.items()],
+        "other": other_options.index.tolist(),
+        "other_count": len(other_options)
+    }
+
