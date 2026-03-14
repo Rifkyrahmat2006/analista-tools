@@ -16,12 +16,10 @@ from utils.data_cleaning import (
     fill_null_values,
     get_data_summary,
 )
-from utils.theme import init_theme, render_theme_toggle, inject_theme_css
+from utils.theme import inject_theme_css
 
 st.set_page_config(page_title="Data Cleaning", page_icon="🧹", layout="wide")
 
-init_theme()
-render_theme_toggle()
 inject_theme_css()
 
 st.markdown("# 🧹 Data Cleaning")

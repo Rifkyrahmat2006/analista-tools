@@ -1,115 +1,11 @@
 """
 Theme Utility
-Centralized dark/light mode management for the Streamlit app.
-Provides auto-detection of system theme, toggle, CSS injection,
-and Plotly layout helpers.
+Centralized CSS injection for the Streamlit app.
+Uses Streamlit's native theme engine and CSS variables
+to guarantee identical colors in dark/light mode globally.
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
-
-
-# --------------- Color Tokens ---------------
-
-THEMES = {
-    "dark": {
-        "bg": "#0e1117",
-        "bg_secondary": "#1e1e2e",
-        "bg_tertiary": "#2a2a3e",
-        "text": "#e0e0e0",
-        "text_muted": "#9a9ab0",
-        "border": "rgba(255,255,255,0.06)",
-        "accent": "#667eea",
-        "sidebar_bg_start": "#1a1a2e",
-        "sidebar_bg_end": "#16213e",
-    },
-    "light": {
-        "bg": "#ffffff",
-        "bg_secondary": "#f5f7fa",
-        "bg_tertiary": "#e8ecf1",
-        "text": "#1a1a2e",
-        "text_muted": "#5a5a7a",
-        "border": "rgba(0,0,0,0.08)",
-        "accent": "#667eea",
-        "sidebar_bg_start": "#f0f2f6",
-        "sidebar_bg_end": "#e8ecf1",
-    },
-}
-
-
-def _inject_system_theme_detection() -> None:
-    """Inject invisible JS to detect browser prefers-color-scheme and redirect."""
-    components.html("""
-    <script>
-        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const theme = isDark ? 'dark' : 'light';
-        const url = new URL(window.parent.location.href);
-        if (!url.searchParams.has('system_theme')) {
-            url.searchParams.set('system_theme', theme);
-            window.parent.location.href = url.toString();
-        }
-    </script>
-    """, height=0)
-
-
-def init_theme() -> None:
-    """
-    Initialize theme in session state.
-    On first load, auto-detects browser/OS dark or light preference
-    via JavaScript. The user can still override with the toggle.
-    """
-    if "theme" not in st.session_state:
-        # Check if the JS detection already redirected with a query param
-        params = st.query_params
-        if "system_theme" in params:
-            detected = params["system_theme"]
-            st.session_state.theme = detected if detected in ("dark", "light") else "dark"
-            del st.query_params["system_theme"]
-        else:
-            # First visit — inject JS to detect system theme, then stop
-            # so the page doesn't flash with the wrong theme
-            st.session_state.theme = "dark"  # temporary fallback
-            _inject_system_theme_detection()
-            st.stop()
-    else:
-        # Clean up stale query param if user navigated back
-        params = st.query_params
-        if "system_theme" in params:
-            del st.query_params["system_theme"]
-
-
-def get_theme() -> str:
-    """Get current theme name."""
-    return st.session_state.get("theme", "dark")
-
-
-def get_colors() -> dict:
-    """Get current theme's color tokens."""
-    return THEMES[get_theme()]
-
-
-def render_theme_toggle() -> None:
-    """Render a dark/light toggle button in the sidebar."""
-    with st.sidebar:
-        current = get_theme()
-        label = "☀️ Light Mode" if current == "dark" else "🌙 Dark Mode"
-        if st.button(label, key="theme_toggle", use_container_width=True):
-            st.session_state.theme = "light" if current == "dark" else "dark"
-            st.rerun()
-
-
-def get_plotly_layout(**overrides) -> dict:
-    """Return a Plotly layout dict matching the current theme."""
-    c = get_colors()
-    layout = dict(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter", color=c["text"]),
-        margin=dict(t=40, b=40, l=40, r=40),
-    )
-    layout.update(overrides)
-    return layout
-
 
 def get_plotly_export_layout() -> dict:
     """
@@ -124,22 +20,16 @@ def get_plotly_export_layout() -> dict:
 
 
 def inject_theme_css() -> None:
-    """Inject theme-aware CSS into the page."""
-    c = get_colors()
+    """Inject CSS using Streamlit's internal CSS variables for native theming."""
     st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
-        /* Sidebar */
-        section[data-testid="stSidebar"] {{
-            background: linear-gradient(180deg, {c['sidebar_bg_start']} 0%, {c['sidebar_bg_end']} 100%);
-        }}
-
         /* Custom component cards */
         .feature-card, .stat-card, .clean-stat, .wc-stat {{
-            background: linear-gradient(145deg, {c['bg_secondary']}, {c['bg_tertiary']});
-            border: 1px solid {c['border']};
+            background: var(--secondary-background-color);
+            border: 1px solid rgba(128, 128, 128, 0.2);
             border-radius: 12px;
             padding: 1.2rem;
             text-align: center;
@@ -151,15 +41,15 @@ def inject_theme_css() -> None:
             box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
         }}
         .feature-icon {{ font-size: 2.8rem; margin-bottom: 0.8rem; }}
-        .feature-title {{ font-size: 1.1rem; font-weight: 600; color: {c['text']}; margin-bottom: 0.4rem; }}
-        .feature-desc {{ font-size: 0.88rem; color: {c['text_muted']}; line-height: 1.5; }}
+        .feature-title {{ font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin-bottom: 0.4rem; }}
+        .feature-desc {{ font-size: 0.88rem; color: var(--text-color); opacity: 0.8; line-height: 1.5; }}
 
-        .stat-value, .clean-stat-val, .wc-stat-val {{ font-size: 1.6rem; font-weight: 700; color: {c['accent']}; }}
-        .stat-label, .clean-stat-lbl, .wc-stat-lbl {{ font-size: 0.82rem; color: {c['text_muted']}; margin-top: 0.3rem; }}
+        .stat-value, .clean-stat-val, .wc-stat-val {{ font-size: 1.6rem; font-weight: 700; color: var(--primary-color); }}
+        .stat-label, .clean-stat-lbl, .wc-stat-lbl {{ font-size: 0.82rem; color: var(--text-color); opacity: 0.8; margin-top: 0.3rem; }}
 
         /* Upload zone */
         .upload-zone {{
-            background: linear-gradient(145deg, {c['bg_secondary']}, {c['bg_tertiary']});
+            background: var(--secondary-background-color);
             border: 2px dashed rgba(102, 126, 234, 0.4);
             border-radius: 16px;
             padding: 2rem;

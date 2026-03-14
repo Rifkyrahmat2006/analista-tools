@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils.theme import init_theme, render_theme_toggle, inject_theme_css
+from utils.theme import inject_theme_css
 
 st.set_page_config(
     page_title="Survey Insight Dashboard",
@@ -13,8 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-init_theme()
-render_theme_toggle()
 inject_theme_css()
 
 # --------------- Hero Section ---------------
