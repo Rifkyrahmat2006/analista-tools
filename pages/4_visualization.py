@@ -10,12 +10,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis
 from utils.export_helpers import table_to_png
-from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_plotly_export_layout
 
 st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
 
-init_theme()
-render_theme_toggle()
 inject_theme_css()
 
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
@@ -42,8 +40,6 @@ with st.sidebar:
         st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
 
-
-PLOTLY_LAYOUT = get_plotly_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
 EXPORT_LAYOUT = get_plotly_export_layout()
 
 # --------------- Column Selection ---------------
@@ -99,7 +95,7 @@ if selected_col:
             )
             if show_values:
                 fig.update_traces(textposition="outside")
-            fig.update_layout(**PLOTLY_LAYOUT, showlegend=False)
+            fig.update_layout(showlegend=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
             fig.update_xaxes(type="category")
 
         elif chart_type == "Horizontal Bar":
@@ -111,15 +107,14 @@ if selected_col:
             )
             if show_values:
                 fig.update_traces(textposition="outside")
-            fig.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False,
-                              yaxis=dict(autorange="reversed"))
+            fig.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
 
         elif chart_type == "Pie Chart":
             fig = px.pie(
                 result, names=val_col, values=count_col,
                 color_discrete_sequence=PLOTLY_COLORS,
             )
-            fig.update_layout(**PLOTLY_LAYOUT)
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
             fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
 
         elif chart_type == "Donut Chart":
@@ -128,7 +123,7 @@ if selected_col:
                 color_discrete_sequence=PLOTLY_COLORS,
                 hole=0.45,
             )
-            fig.update_layout(**PLOTLY_LAYOUT)
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
             fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
 
         elif chart_type == "Treemap":
@@ -136,14 +131,14 @@ if selected_col:
                 result, path=[val_col], values=count_col,
                 color=count_col, color_continuous_scale=chart_theme,
             )
-            fig.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
+            fig.update_layout(coloraxis_showscale=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
 
         elif chart_type == "Area Chart":
             fig = px.area(
                 result, x=val_col, y=count_col,
                 color_discrete_sequence=PLOTLY_COLORS,
             )
-            fig.update_layout(**PLOTLY_LAYOUT)
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
             fig.update_xaxes(type="category")
 
         elif chart_type == "Line Chart":
@@ -152,7 +147,7 @@ if selected_col:
                 markers=True,
                 color_discrete_sequence=PLOTLY_COLORS,
             )
-            fig.update_layout(**PLOTLY_LAYOUT)
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
             fig.update_xaxes(type="category")
 
         else:

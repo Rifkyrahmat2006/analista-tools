@@ -9,12 +9,10 @@ from io import BytesIO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
-from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_plotly_export_layout
 
 st.set_page_config(page_title="Wordcloud", page_icon="☁️", layout="wide")
 
-init_theme()
-render_theme_toggle()
 inject_theme_css()
 
 st.markdown("# ☁️ Wordcloud Generator")
@@ -127,11 +125,6 @@ with col_preview:
             # Top keywords
             st.markdown("### 🔑 Top Keywords")
 
-            PLOTLY_LAYOUT = get_plotly_layout(
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=max(300, top_n * 25),
-                coloraxis_showscale=False,
-            )
             EXPORT_LAYOUT = get_plotly_export_layout()
 
             fig = px.bar(
@@ -141,7 +134,12 @@ with col_preview:
                 color_continuous_scale="Purples",
                 text="Frequency",
             )
-            fig.update_layout(**PLOTLY_LAYOUT, yaxis=dict(autorange="reversed"))
+            fig.update_layout(
+                yaxis=dict(autorange="reversed"),
+                margin=dict(t=20, b=20, l=20, r=20),
+                height=max(300, top_n * 25),
+                coloraxis_showscale=False,
+            )
             fig.update_traces(textposition="outside")
             wc_chart_config = {"toImageButtonOptions": {"filename": f"{selected_col}_keywords", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig, use_container_width=True, config=wc_chart_config)

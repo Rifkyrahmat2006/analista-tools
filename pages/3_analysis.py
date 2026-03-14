@@ -12,18 +12,15 @@ from utils.multi_select_analysis import multi_choice_analysis, multi_choice_comb
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
-from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_plotly_export_layout
 
 st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
 
-init_theme()
-render_theme_toggle()
 inject_theme_css()
 
-# Custom Plotly theme
+# Custom Plotly color sequence (to keep brand colors)
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
-PLOTLY_LAYOUT = get_plotly_layout()
 EXPORT_LAYOUT = get_plotly_export_layout()
 
 st.markdown("# 📈 Analysis")
@@ -132,7 +129,7 @@ for col_name, q_type in configured_cols.items():
                     color="Value", color_discrete_sequence=PLOTLY_COLORS,
                     text="Count",
                 )
-                fig_bar.update_layout(**PLOTLY_LAYOUT, showlegend=False)
+                fig_bar.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
                 fig_bar.update_traces(textposition="outside")
                 bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2, **EXPORT_LAYOUT}}
                 st.plotly_chart(fig_bar, use_container_width=True, config=bar_config)
@@ -143,7 +140,7 @@ for col_name, q_type in configured_cols.items():
                     color_discrete_sequence=PLOTLY_COLORS,
                     hole=0.4,
                 )
-                fig_pie.update_layout(**PLOTLY_LAYOUT)
+                fig_pie.update_layout(margin=dict(t=40, b=40, l=40, r=40))
                 fig_pie.update_traces(textinfo="label+percent")
                 pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2, **EXPORT_LAYOUT}}
                 st.plotly_chart(fig_pie, use_container_width=True, config=pie_config)
@@ -189,7 +186,7 @@ for col_name, q_type in configured_cols.items():
                 color="Count", color_continuous_scale="Purples",
                 text="Count",
             )
-            fig_scale.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
+            fig_scale.update_layout(coloraxis_showscale=False, margin=dict(t=40, b=40, l=40, r=40))
             fig_scale.update_traces(textposition="outside")
             fig_scale.update_xaxes(type="category")
             scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2, **EXPORT_LAYOUT}}
@@ -231,7 +228,7 @@ for col_name, q_type in configured_cols.items():
                 color="Count", color_continuous_scale="Purples",
                 text="Count",
             )
-            fig_multi.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
+            fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
             fig_multi.update_traces(textposition="outside")
             multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig_multi, use_container_width=True, config=multi_config)
@@ -274,7 +271,7 @@ for col_name, q_type in configured_cols.items():
                 color="Frequency", color_continuous_scale="Purples",
                 text="Frequency",
             )
-            fig_text.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
+            fig_text.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
             fig_text.update_traces(textposition="outside")
             text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig_text, use_container_width=True, config=text_config)
