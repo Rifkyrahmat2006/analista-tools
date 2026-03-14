@@ -16,8 +16,8 @@ def get_light_plotly_layout() -> dict:
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
         font=dict(family="Inter", color="#1a1a2e"),
-        xaxis=dict(gridcolor="#e8ecf1", zerolinecolor="#e8ecf1"),
-        yaxis=dict(gridcolor="#e8ecf1", zerolinecolor="#e8ecf1"),
+        xaxis=dict(gridcolor="rgba(0,0,0,0.06)", zerolinecolor="rgba(0,0,0,0.06)", automargin=True),
+        yaxis=dict(gridcolor="rgba(0,0,0,0.06)", zerolinecolor="rgba(0,0,0,0.06)", automargin=True),
     )
 
 

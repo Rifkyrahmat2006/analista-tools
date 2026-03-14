@@ -143,7 +143,7 @@ with col_preview:
             )
             fig.update_layout(
                 yaxis=dict(autorange="reversed"),
-                margin=dict(t=20, b=20, l=20, r=20),
+                margin=dict(t=20, b=20),
                 height=max(300, top_n * 25),
                 coloraxis_showscale=False,
             )
