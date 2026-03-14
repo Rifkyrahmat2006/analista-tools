@@ -10,17 +10,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis
 from utils.export_helpers import table_to_png
+from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
 
 st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+init_theme()
+render_theme_toggle()
+inject_theme_css()
 
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
@@ -47,13 +43,8 @@ with st.sidebar:
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
 
 
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter", color="#e0e0e0"),
-    margin=dict(t=50, b=50, l=50, r=50),
-    height=chart_height,
-)
+PLOTLY_LAYOUT = get_plotly_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+EXPORT_LAYOUT = get_plotly_export_layout()
 
 # --------------- Column Selection ---------------
 st.markdown("### 📌 Pilih Kolom dan Tipe Chart")
@@ -175,6 +166,7 @@ if selected_col:
                     "width": 1200,
                     "height": chart_height,
                     "scale": 2,
+                    **EXPORT_LAYOUT,
                 },
             }
             st.plotly_chart(fig, use_container_width=True, config=chart_config)

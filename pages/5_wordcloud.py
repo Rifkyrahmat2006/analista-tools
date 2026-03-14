@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
@@ -8,26 +9,13 @@ from io import BytesIO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
+from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
 
 st.set_page_config(page_title="Wordcloud", page_icon="☁️", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .wc-stat {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1.2rem;
-        text-align: center;
-    }
-    .wc-stat-val { font-size: 1.6rem; font-weight: 700; color: #667eea; }
-    .wc-stat-lbl { font-size: 0.82rem; color: #9a9ab0; margin-top: 0.3rem; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+init_theme()
+render_theme_toggle()
+inject_theme_css()
 
 st.markdown("# ☁️ Wordcloud Generator")
 
@@ -139,7 +127,12 @@ with col_preview:
             # Top keywords
             st.markdown("### 🔑 Top Keywords")
 
-            import plotly.express as px
+            PLOTLY_LAYOUT = get_plotly_layout(
+                margin=dict(t=20, b=20, l=20, r=20),
+                height=max(300, top_n * 25),
+                coloraxis_showscale=False,
+            )
+            EXPORT_LAYOUT = get_plotly_export_layout()
 
             fig = px.bar(
                 top_kw, x="Frequency", y="Keyword",
@@ -148,17 +141,10 @@ with col_preview:
                 color_continuous_scale="Purples",
                 text="Frequency",
             )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="Inter", color="#e0e0e0"),
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=max(300, top_n * 25),
-                coloraxis_showscale=False,
-                yaxis=dict(autorange="reversed"),
-            )
+            fig.update_layout(**PLOTLY_LAYOUT, yaxis=dict(autorange="reversed"))
             fig.update_traces(textposition="outside")
-            st.plotly_chart(fig, use_container_width=True)
+            wc_chart_config = {"toImageButtonOptions": {"filename": f"{selected_col}_keywords", "scale": 2, **EXPORT_LAYOUT}}
+            st.plotly_chart(fig, use_container_width=True, config=wc_chart_config)
 
             # Data table
             with st.expander("📋 Lihat Tabel Kata"):

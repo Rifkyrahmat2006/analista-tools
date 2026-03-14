@@ -16,26 +16,13 @@ from utils.data_cleaning import (
     fill_null_values,
     get_data_summary,
 )
+from utils.theme import init_theme, render_theme_toggle, inject_theme_css
 
 st.set_page_config(page_title="Data Cleaning", page_icon="🧹", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .clean-stat {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: center;
-    }
-    .clean-stat-val { font-size: 1.5rem; font-weight: 700; color: #667eea; }
-    .clean-stat-lbl { font-size: 0.8rem; color: #9a9ab0; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+init_theme()
+render_theme_toggle()
+inject_theme_css()
 
 st.markdown("# 🧹 Data Cleaning")
 

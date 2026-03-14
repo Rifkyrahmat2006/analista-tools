@@ -12,36 +12,19 @@ from utils.multi_select_analysis import multi_choice_analysis, multi_choice_comb
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
+from utils.theme import init_theme, render_theme_toggle, inject_theme_css, get_plotly_layout, get_plotly_export_layout
 
 st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .analysis-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 12px;
-        padding: 1.5rem;
-        color: white;
-        margin-bottom: 1.5rem;
-    }
-    .analysis-header h2 { color: white; margin: 0; }
-    .analysis-header p { color: rgba(255,255,255,0.8); margin: 0.3rem 0 0 0; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+init_theme()
+render_theme_toggle()
+inject_theme_css()
 
 # Custom Plotly theme
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter", color="#e0e0e0"),
-    margin=dict(t=40, b=40, l=40, r=40),
-)
+PLOTLY_LAYOUT = get_plotly_layout()
+EXPORT_LAYOUT = get_plotly_export_layout()
 
 st.markdown("# 📈 Analysis")
 
@@ -151,7 +134,7 @@ for col_name, q_type in configured_cols.items():
                 )
                 fig_bar.update_layout(**PLOTLY_LAYOUT, showlegend=False)
                 fig_bar.update_traces(textposition="outside")
-                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
+                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2, **EXPORT_LAYOUT}}
                 st.plotly_chart(fig_bar, use_container_width=True, config=bar_config)
 
             with tab_pie:
@@ -162,7 +145,7 @@ for col_name, q_type in configured_cols.items():
                 )
                 fig_pie.update_layout(**PLOTLY_LAYOUT)
                 fig_pie.update_traces(textinfo="label+percent")
-                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2}}
+                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2, **EXPORT_LAYOUT}}
                 st.plotly_chart(fig_pie, use_container_width=True, config=pie_config)
 
         # Export buttons
@@ -209,7 +192,7 @@ for col_name, q_type in configured_cols.items():
             fig_scale.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
             fig_scale.update_traces(textposition="outside")
             fig_scale.update_xaxes(type="category")
-            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
+            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig_scale, use_container_width=True, config=scale_config)
 
         # Export buttons
@@ -250,7 +233,7 @@ for col_name, q_type in configured_cols.items():
             )
             fig_multi.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
             fig_multi.update_traces(textposition="outside")
-            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
+            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig_multi, use_container_width=True, config=multi_config)
 
         # Export buttons
@@ -293,7 +276,7 @@ for col_name, q_type in configured_cols.items():
             )
             fig_text.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
             fig_text.update_traces(textposition="outside")
-            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
+            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2, **EXPORT_LAYOUT}}
             st.plotly_chart(fig_text, use_container_width=True, config=text_config)
 
             st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")

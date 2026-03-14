@@ -7,34 +7,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_file, save_dataset, list_saved_datasets, load_saved_dataset
+from utils.theme import init_theme, render_theme_toggle, inject_theme_css
 
 st.set_page_config(page_title="Upload Data", page_icon="📤", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .upload-zone {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 2px dashed rgba(102, 126, 234, 0.4);
-        border-radius: 16px;
-        padding: 2rem;
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
-    .stat-card {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1.2rem;
-        text-align: center;
-    }
-    .stat-value { font-size: 1.8rem; font-weight: 700; color: #667eea; }
-    .stat-label { font-size: 0.85rem; color: #9a9ab0; margin-top: 0.3rem; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+init_theme()
+render_theme_toggle()
+inject_theme_css()
 
 st.markdown("# 📤 Upload Data")
 st.markdown("Upload dataset survei dari file **CSV** atau **Excel** (.xlsx/.xls)")

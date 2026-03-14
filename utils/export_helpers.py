@@ -1,6 +1,7 @@
 """
 Export Utility
 Helpers for exporting tables as PNG for download.
+Always renders in LIGHT theme for print-readiness.
 """
 
 import io
@@ -13,6 +14,7 @@ import matplotlib.pyplot as plt
 def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes:
     """
     Render a pandas DataFrame as a styled table PNG using matplotlib.
+    Always uses light theme (white background, dark text) for print-readiness.
     """
     display_df = df.head(max_rows)
     n_rows, n_cols = display_df.shape
@@ -26,9 +28,9 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     ax.axis("off")
 
     if title:
-        fig.suptitle(title, fontsize=14, fontweight="bold", color="#e0e0e0", y=0.98)
+        fig.suptitle(title, fontsize=14, fontweight="bold", color="#1a1a2e", y=0.98)
 
-    fig.patch.set_facecolor("#0e1117")
+    fig.patch.set_facecolor("#ffffff")
 
     # Create table
     table = ax.table(
@@ -44,18 +46,18 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     table.scale(1, 1.4)
 
     for (row, col), cell in table.get_celld().items():
-        cell.set_edgecolor("#3a3a5c")
+        cell.set_edgecolor("#d0d0e0")
         if row == 0:
-            # Header row
+            # Header row — purple accent
             cell.set_facecolor("#667eea")
             cell.set_text_props(color="white", fontweight="bold", fontsize=11)
         else:
-            # Data rows - alternating colors
+            # Data rows — alternating light colors
             if row % 2 == 0:
-                cell.set_facecolor("#1e1e2e")
+                cell.set_facecolor("#f5f7fa")
             else:
-                cell.set_facecolor("#252540")
-            cell.set_text_props(color="#e0e0e0")
+                cell.set_facecolor("#ffffff")
+            cell.set_text_props(color="#1a1a2e")
 
     plt.tight_layout()
 
