@@ -115,15 +115,16 @@ for col_name in df.columns:
             ms_key = f"mainopts_{col_name}"
             # Initialize state
             if ms_key not in st.session_state:
-                st.session_state[ms_key] = prev_data["main_names"].copy()
+                st.session_state[ms_key] = prev_data.get("main_names", []).copy()
                 
             current_mains = st.session_state[ms_key]
             
             # Show current Main Options
             st.caption("Options preview:")
+            counts_dict = prev_data.get("counts", {})
             for opt in current_mains.copy():
                 r1, r2 = st.columns([0.95, 0.05])
-                count_val = prev_data["counts"].get(opt, 0)
+                count_val = counts_dict.get(opt, 0)
                 with r1:
                     st.markdown(f"◯ {opt} ({count_val})")
                 with r2:
@@ -132,8 +133,8 @@ for col_name in df.columns:
                         st.rerun()
 
             # Identify Others
-            other_opts = [o for o in prev_data["all"] if o not in current_mains]
-            other_count = sum(prev_data["counts"].get(o, 0) for o in other_opts)
+            other_opts = [o for o in prev_data.get("all", []) if o not in current_mains]
+            other_count = sum(counts_dict.get(o, 0) for o in other_opts)
             
             if other_count > 0:
                 st.markdown(f"◯ **Other** ({other_count})")
@@ -144,7 +145,7 @@ for col_name in df.columns:
             if other_opts:
                 st.caption("Other responses:")
                 for oth in other_opts:
-                    count_val = prev_data["counts"].get(oth, 0)
+                    count_val = counts_dict.get(oth, 0)
                     or1, or2 = st.columns([0.95, 0.05])
                     with or1:
                         st.markdown(f"• {oth} ({count_val})")
@@ -160,10 +161,11 @@ for col_name in df.columns:
                 new_opt = st.text_input("Add option", key=f"txt_{col_name}", label_visibility="collapsed", placeholder="Ketik opsi manual...")
             with c_add2:
                 if st.button("Add", key=f"btn_add_{col_name}", use_container_width=True):
-                    if new_opt and new_opt not in current_mains and new_opt in prev_data["all"]:
+                    all_opts = prev_data.get("all", [])
+                    if new_opt and new_opt not in current_mains and new_opt in all_opts:
                         st.session_state[ms_key].append(new_opt)
                         st.rerun()
-                    elif new_opt and new_opt not in prev_data["all"]:
+                    elif new_opt and new_opt not in all_opts:
                         st.warning("Opsi tidak ditemukan.")
             
         elif current_val == "scale":
