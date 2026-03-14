@@ -9,13 +9,20 @@ from io import BytesIO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
-from utils.theme import inject_theme_css, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_light_plotly_layout
 
 st.set_page_config(page_title="Wordcloud", page_icon="☁️", layout="wide")
 
 inject_theme_css()
 
 st.markdown("# ☁️ Wordcloud Generator")
+
+with st.sidebar:
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar bar chart berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
 
 if "df" not in st.session_state or st.session_state.df is None:
     st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
@@ -125,7 +132,7 @@ with col_preview:
             # Top keywords
             st.markdown("### 🔑 Top Keywords")
 
-            EXPORT_LAYOUT = get_plotly_export_layout()
+            LIGHT_LAYOUT = get_light_plotly_layout()
 
             fig = px.bar(
                 top_kw, x="Frequency", y="Keyword",
@@ -140,9 +147,10 @@ with col_preview:
                 height=max(300, top_n * 25),
                 coloraxis_showscale=False,
             )
+            if force_light_mode: fig.update_layout(**LIGHT_LAYOUT)
             fig.update_traces(textposition="outside")
-            wc_chart_config = {"toImageButtonOptions": {"filename": f"{selected_col}_keywords", "scale": 2, **EXPORT_LAYOUT}}
-            st.plotly_chart(fig, use_container_width=True, config=wc_chart_config)
+            wc_chart_config = {"toImageButtonOptions": {"filename": f"{selected_col}_keywords", "scale": 2}}
+            st.plotly_chart(fig, use_container_width=True, config=wc_chart_config, theme=None if force_light_mode else "streamlit")
 
             # Data table
             with st.expander("📋 Lihat Tabel Kata"):

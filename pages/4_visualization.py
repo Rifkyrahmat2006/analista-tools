@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis
 from utils.export_helpers import table_to_png
-from utils.theme import inject_theme_css, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_light_plotly_layout
 
 st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
 
@@ -35,12 +35,18 @@ with st.sidebar:
     chart_height = st.slider("Tinggi Chart", 300, 800, 500, step=50)
     show_values = st.checkbox("Tampilkan Nilai", value=True)
 
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar chart Plotly berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
+
     st.markdown("---")
     if "df" in st.session_state and st.session_state.df is not None:
         st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
 
-EXPORT_LAYOUT = get_plotly_export_layout()
+EXPORT_LAYOUT = get_light_plotly_layout()
 
 # --------------- Column Selection ---------------
 st.markdown("### 📌 Pilih Kolom dan Tipe Chart")
@@ -96,6 +102,7 @@ if selected_col:
             if show_values:
                 fig.update_traces(textposition="outside")
             fig.update_layout(showlegend=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
             fig.update_xaxes(type="category")
 
         elif chart_type == "Horizontal Bar":
@@ -108,6 +115,7 @@ if selected_col:
             if show_values:
                 fig.update_traces(textposition="outside")
             fig.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
 
         elif chart_type == "Pie Chart":
             fig = px.pie(
@@ -115,6 +123,7 @@ if selected_col:
                 color_discrete_sequence=PLOTLY_COLORS,
             )
             fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
             fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
 
         elif chart_type == "Donut Chart":
@@ -124,6 +133,7 @@ if selected_col:
                 hole=0.45,
             )
             fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
             fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
 
         elif chart_type == "Treemap":
@@ -132,6 +142,7 @@ if selected_col:
                 color=count_col, color_continuous_scale=chart_theme,
             )
             fig.update_layout(coloraxis_showscale=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
 
         elif chart_type == "Area Chart":
             fig = px.area(
@@ -139,6 +150,7 @@ if selected_col:
                 color_discrete_sequence=PLOTLY_COLORS,
             )
             fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
             fig.update_xaxes(type="category")
 
         elif chart_type == "Line Chart":
@@ -148,6 +160,7 @@ if selected_col:
                 color_discrete_sequence=PLOTLY_COLORS,
             )
             fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
             fig.update_xaxes(type="category")
 
         else:
@@ -161,10 +174,9 @@ if selected_col:
                     "width": 1200,
                     "height": chart_height,
                     "scale": 2,
-                    **EXPORT_LAYOUT,
                 },
             }
-            st.plotly_chart(fig, use_container_width=True, config=chart_config)
+            st.plotly_chart(fig, use_container_width=True, config=chart_config, theme=None if force_light_mode else "streamlit")
 
             # Export options
             st.markdown("---")

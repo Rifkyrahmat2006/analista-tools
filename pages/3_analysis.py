@@ -12,7 +12,7 @@ from utils.multi_select_analysis import multi_choice_analysis, multi_choice_comb
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
-from utils.theme import inject_theme_css, get_plotly_export_layout
+from utils.theme import inject_theme_css, get_light_plotly_layout
 
 st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
 
@@ -21,7 +21,18 @@ inject_theme_css()
 # Custom Plotly color sequence (to keep brand colors)
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
-EXPORT_LAYOUT = get_plotly_export_layout()
+LIGHT_LAYOUT = get_light_plotly_layout()
+
+with st.sidebar:
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar chart Plotly berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
+
+    if st.button("Reset Pengaturan Kolom", use_container_width=True):
+        st.session_state.question_types = {}
+        st.rerun()
 
 st.markdown("# 📈 Analysis")
 
@@ -130,9 +141,10 @@ for col_name, q_type in configured_cols.items():
                     text="Count",
                 )
                 fig_bar.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_bar.update_layout(**LIGHT_LAYOUT)
                 fig_bar.update_traces(textposition="outside")
-                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2, **EXPORT_LAYOUT}}
-                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config)
+                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
+                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config, theme=None if force_light_mode else "streamlit")
 
             with tab_pie:
                 fig_pie = px.pie(
@@ -141,9 +153,10 @@ for col_name, q_type in configured_cols.items():
                     hole=0.4,
                 )
                 fig_pie.update_layout(margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_pie.update_layout(**LIGHT_LAYOUT)
                 fig_pie.update_traces(textinfo="label+percent")
-                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2, **EXPORT_LAYOUT}}
-                st.plotly_chart(fig_pie, use_container_width=True, config=pie_config)
+                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2}}
+                st.plotly_chart(fig_pie, use_container_width=True, config=pie_config, theme=None if force_light_mode else "streamlit")
 
         # Export buttons
         exp1, exp2 = st.columns(2)
@@ -187,10 +200,11 @@ for col_name, q_type in configured_cols.items():
                 text="Count",
             )
             fig_scale.update_layout(coloraxis_showscale=False, margin=dict(t=40, b=40, l=40, r=40))
+            if force_light_mode: fig_scale.update_layout(**LIGHT_LAYOUT)
             fig_scale.update_traces(textposition="outside")
             fig_scale.update_xaxes(type="category")
-            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2, **EXPORT_LAYOUT}}
-            st.plotly_chart(fig_scale, use_container_width=True, config=scale_config)
+            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
+            st.plotly_chart(fig_scale, use_container_width=True, config=scale_config, theme=None if force_light_mode else "streamlit")
 
         # Export buttons
         exp1, exp2 = st.columns(2)
@@ -229,9 +243,10 @@ for col_name, q_type in configured_cols.items():
                 text="Count",
             )
             fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
+            if force_light_mode: fig_multi.update_layout(**LIGHT_LAYOUT)
             fig_multi.update_traces(textposition="outside")
-            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2, **EXPORT_LAYOUT}}
-            st.plotly_chart(fig_multi, use_container_width=True, config=multi_config)
+            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
+            st.plotly_chart(fig_multi, use_container_width=True, config=multi_config, theme=None if force_light_mode else "streamlit")
 
         # Export buttons
         exp1, exp2 = st.columns(2)
@@ -272,9 +287,10 @@ for col_name, q_type in configured_cols.items():
                 text="Frequency",
             )
             fig_text.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
+            if force_light_mode: fig_text.update_layout(**LIGHT_LAYOUT)
             fig_text.update_traces(textposition="outside")
-            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2, **EXPORT_LAYOUT}}
-            st.plotly_chart(fig_text, use_container_width=True, config=text_config)
+            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
+            st.plotly_chart(fig_text, use_container_width=True, config=text_config, theme=None if force_light_mode else "streamlit")
 
             st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
 

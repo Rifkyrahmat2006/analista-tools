@@ -7,15 +7,17 @@ to guarantee identical colors in dark/light mode globally.
 
 import streamlit as st
 
-def get_plotly_export_layout() -> dict:
+def get_light_plotly_layout() -> dict:
     """
-    Return a LIGHT Plotly layout for PNG export downloads.
-    Always white background with dark text for print-readiness.
+    Return a completely LIGHT Plotly layout.
+    Used when the user forces 'Print Mode' to download a chart on white background.
     """
     return dict(
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
         font=dict(family="Inter", color="#1a1a2e"),
+        xaxis=dict(gridcolor="#e8ecf1", zerolinecolor="#e8ecf1"),
+        yaxis=dict(gridcolor="#e8ecf1", zerolinecolor="#e8ecf1"),
     )
 
 
