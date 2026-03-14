@@ -56,7 +56,12 @@ if not configured_cols:
 
 st.markdown(f"### 📊 Hasil Analisis ({len(configured_cols)} kolom)")
 
+search_q = st.text_input("🔍 Cari Hasil Analisis...", placeholder="Ketik kata kunci pertanyaan...", key="search_responses")
+
 for col_name, q_type in configured_cols.items():
+    if search_q and search_q.lower() not in col_name.lower():
+        continue
+        
     st.markdown(f"""
     <div class="analysis-header">
         <h2>{col_name}</h2>

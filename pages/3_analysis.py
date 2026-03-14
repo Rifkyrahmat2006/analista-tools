@@ -61,8 +61,12 @@ if "detected_types" not in st.session_state or st.session_state.get("_det_id") !
     st.session_state._det_id = id(df)
 
 # Show configuration in a vertical block layout
+search_q = st.text_input("🔍 Cari Pertanyaan...", placeholder="Ketik kata kunci pertanyaan...", key="search_config")
 
 for col_name in df.columns:
+    if search_q and search_q.lower() not in col_name.lower():
+        continue
+        
     suggested = st.session_state.detected_types.get(col_name, "skip")
     current_val = st.session_state.question_types.get(col_name, suggested)
     default_idx = TYPE_OPTIONS.index(current_val) if current_val in TYPE_OPTIONS else 0
