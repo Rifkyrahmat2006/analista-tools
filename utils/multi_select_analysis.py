@@ -19,13 +19,19 @@ def split_and_explode(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd
     return exploded
 
 
-def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.DataFrame:
+def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",", main_options: list = None) -> pd.DataFrame:
     """
     Analyze a multiple choice column.
     Pipeline: split → explode → count frequency
+    If main_options is provided, responses not in main_options are grouped as 'Other'.
     Returns a DataFrame with columns: [Value, Count, Percentage]
     """
     exploded = split_and_explode(df, column, delimiter)
+    
+    if main_options is not None:
+        # Replace values not in main_options with 'Other'
+        exploded = exploded.apply(lambda x: x if x in main_options else "Other")
+        
     counts = exploded.value_counts().reset_index()
     counts.columns = ["Value", "Count"]
     total_responses = df[column].dropna().shape[0]
@@ -65,11 +71,13 @@ def get_multiple_choice_preview(series: pd.Series, delimiter: str = ",") -> dict
         
     threshold = max(3, total_responses * 0.02)
     
-    main_options = counts[counts >= threshold]
+    main_options_series = counts[counts >= threshold]
     other_options = counts[counts < threshold]
     
     return {
-        "main": [(k, v) for k, v in main_options.items()],
+        "all": counts.index.tolist(),
+        "main": [(k, v) for k, v in main_options_series.items()],
+        "main_names": main_options_series.index.tolist(),
         "other": other_options.index.tolist(),
         "other_count": len(other_options)
     }

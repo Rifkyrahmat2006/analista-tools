@@ -7,12 +7,17 @@ import pandas as pd
 import streamlit as st
 
 
-def single_choice_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
+def single_choice_analysis(df: pd.DataFrame, column: str, main_options: list = None) -> pd.DataFrame:
     """
     Analyze a single choice column using value_counts.
+    If main_options is provided, responses not in main_options are grouped as 'Other'.
     Returns a DataFrame with columns: [Value, Count, Percentage]
     """
-    counts = df[column].value_counts().reset_index()
+    series = df[column]
+    if main_options is not None:
+        series = series.apply(lambda x: x if x in main_options else "Other")
+        
+    counts = series.value_counts().reset_index()
     counts.columns = ["Value", "Count"]
     total = counts["Count"].sum()
     counts["Percentage"] = (counts["Count"] / total * 100).round(2)
@@ -73,11 +78,13 @@ def get_single_choice_preview(series: pd.Series) -> dict:
         
     threshold = max(3, total_responses * 0.02)
     
-    main_options = counts[counts >= threshold]
+    main_options_series = counts[counts >= threshold]
     other_options = counts[counts < threshold]
     
     return {
-        "main": [(k, v) for k, v in main_options.items()],
+        "all": counts.index.tolist(),
+        "main": [(k, v) for k, v in main_options_series.items()],
+        "main_names": main_options_series.index.tolist(),
         "other": other_options.index.tolist(),
         "other_count": len(other_options)
     }

@@ -60,8 +60,27 @@ if "detected_types" not in st.session_state or st.session_state.get("_det_id") !
         st.session_state.detected_features[col] = analyze_column_features(df[col])
     st.session_state._det_id = id(df)
 
-# Show configuration in a vertical block layout
-st.markdown("---")
+# Add Custom CSS to make tabs sticky
+st.markdown(
+    """
+    <style>
+    div[data-testid="stTabs"] > div:first-child {
+        position: sticky;
+        top: 3.5rem;
+        z-index: 990;
+        background-color: var(--background-color);
+        padding-bottom: 0px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+tab_config, tab_responses = st.tabs(["⚙️ Questions", "📊 Responses"])
+
+with tab_config:
+    # Show configuration in a vertical block layout
+    st.markdown("---")
 
 for col_name in df.columns:
     suggested = st.session_state.detected_types.get(col_name, "skip")
@@ -85,34 +104,39 @@ for col_name in df.columns:
             st.markdown("<br>", unsafe_allow_html=True)
             
             # Preview section based on currently selected type
-            if current_val == "multiple_choice":
-                st.caption("**Options Preview (Multiple Choice):**")
-                prev_data = get_multiple_choice_preview(df[col_name])
-                for opt, count in prev_data["main"]:
-                    st.markdown(f"• {opt} ({count})")
-                if prev_data["other_count"] > 0:
-                    st.markdown(f"• **Other** ({prev_data['other_count']})")
-                    with st.expander("Lihat Other responses"):
-                        for oth in prev_data["other"]:
-                            st.markdown(f"- {oth}")
-                            
-            elif current_val == "single_choice":
-                st.caption("**Options Preview (Single Choice):**")
-                prev_data = get_single_choice_preview(df[col_name])
-                for opt, count in prev_data["main"]:
-                    st.markdown(f"• {opt} ({count})")
-                if prev_data["other_count"] > 0:
-                    st.markdown(f"• **Other** ({prev_data['other_count']})")
-                    with st.expander("Lihat Other responses"):
-                        for oth in prev_data["other"]:
-                            st.markdown(f"- {oth}")
-                            
-            elif current_val == "scale":
-                st.caption("**Distribution Preview (Scale):**")
-                prev_data = df[col_name].value_counts().sort_index()
-                for val, count in prev_data.items():
-                    st.markdown(f"**{val}** &rarr; {count}")
+            if current_val in ["multiple_choice", "single_choice"]:
+                with st.expander("⚙️ Options Config & Preview", expanded=False):
+                    if current_val == "multiple_choice":
+                        prev_data = get_multiple_choice_preview(df[col_name])
+                    else:
+                        prev_data = get_single_choice_preview(df[col_name])
+                        
+                    st.caption(f"**Options Preview ({current_val.replace('_', ' ').title()}):**")
                     
+                    # Store user's multi-select choices in session state
+                    ms_key = f"mainopts_{col_name}"
+                    
+                    st.multiselect(
+                        "Main Options (Yang tidak dipilih masuk kategori Other)",
+                        options=prev_data["all"],
+                        default=prev_data["main_names"],
+                        key=ms_key
+                    )
+                    
+                    # Render stats preview reading from what is currently selected
+                    selected_main = st.session_state.get(ms_key, prev_data["main_names"])
+                    st.markdown("---")
+                    for opt in selected_main:
+                        if prev_data["all"].count(opt) > 0: # Note: this doesn't accurately reflect live counts when overriding, just a UI mock. The real chart is accurate.
+                             pass
+                    st.info(f"{len(selected_main)} Main Options Selected. Sisa dari {len(prev_data['all'])} nilai unik masuk Other.")
+            
+            elif current_val == "scale":
+                with st.expander("⚙️ Distribution Preview (Scale)", expanded=False):
+                    prev_data = df[col_name].value_counts().sort_index()
+                    for val, count in prev_data.items():
+                        st.markdown(f"**{val}** &rarr; {count}")
+                        
             elif current_val == "open_text":
                 st.caption("*Open Text - no options preview*")
                 
@@ -142,7 +166,9 @@ for col_name in df.columns:
 
         st.markdown("---")
 
-st.markdown("---")
+with tab_responses:
+    st.markdown("---")
+
 
 # --------------- Run Analysis ---------------
 configured_cols = {k: v for k, v in st.session_state.question_types.items() if v != "skip"}
@@ -162,7 +188,8 @@ for col_name, q_type in configured_cols.items():
     """, unsafe_allow_html=True)
 
     if q_type == "single_choice":
-        result = single_choice_analysis(df, col_name)
+        main_opts = st.session_state.get(f"mainopts_{col_name}")
+        result = single_choice_analysis(df, col_name, main_options=main_opts)
         col_table, col_chart = st.columns([1, 2])
 
         with col_table:
@@ -261,7 +288,8 @@ for col_name, q_type in configured_cols.items():
                                use_container_width=True, key=f"dl_csv_{col_name}")
 
     elif q_type == "multiple_choice":
-        result = multi_choice_analysis(df, col_name)
+        main_opts = st.session_state.get(f"mainopts_{col_name}")
+        result = multi_choice_analysis(df, col_name, main_options=main_opts)
 
         col_table, col_chart = st.columns([1, 2])
 

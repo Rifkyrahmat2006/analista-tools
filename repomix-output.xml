@@ -44,6 +44,7 @@ The content is organized as follows:
 .gitignore
 app.py
 auto-detect-question-type.md
+new-page-analysis.md
 pages/1_upload_data.py
 pages/2_data_cleaning.py
 pages/3_analysis.py
@@ -398,6 +399,308 @@ utils/question_detection.py
 pages/3_analysis.py
 
 ---
+</file>
+
+<file path="new-page-analysis.md">
+# New Analysis Page Design
+
+## Overview
+
+This document defines the new design and behavior of the **Analysis page** for the survey processing application built with Streamlit.
+
+The goal is to redesign the page to improve usability and match the mental model of users familiar with Google Forms.
+
+The page should present questions in a **single vertical layout**, similar to the Google Forms admin interface.
+
+Each question is displayed as a block containing:
+
+* question text
+* question type selector
+* optional answer option preview
+* column statistics (optional)
+
+This replaces the previous **grid card layout**.
+
+---
+
+# Page Layout
+
+The layout must be **vertical, single column**, ordered by the dataset column order.
+
+Structure:
+
+Question Block
+↓
+Question Block
+↓
+Question Block
+
+Each block represents one column in the dataset.
+
+---
+
+# Question Block Structure
+
+Each question block contains:
+
+1. Question Text
+2. Question Type Dropdown
+3. Suggested Type Label
+4. Optional Option Preview (for multiple choice)
+5. Optional Column Statistics
+
+Example UI layout:
+
+Question text
+
+[ Question Type Dropdown ]
+
+Suggested: multiple_choice
+
+Options (if multiple choice):
+
+• PKM (120)
+• Essay (95)
+• Debate (60)
+• Other (7)
+
+---
+
+# Question Type Selector
+
+Each question must have a dropdown selector.
+
+Possible types:
+
+* single_choice
+* multiple_choice
+* scale
+* open_text
+* skip
+
+The default selected value should come from the **automatic detection algorithm**.
+
+Users must still be able to override the suggestion manually.
+
+---
+
+# Layout Alignment
+
+The question block must use a **two-column layout**:
+
+Left column:
+
+Question text
+
+Right column:
+
+Question type dropdown
+
+Example structure:
+
+| Question Text | Dropdown |
+
+---
+
+# Option Preview (Multiple Choice)
+
+If the selected type is **multiple_choice**, the application must automatically extract answer options from the dataset.
+
+Steps:
+
+1. Split responses by delimiter
+2. Explode into individual answers
+3. Normalize text
+4. Count frequency
+
+Example:
+
+Input responses:
+
+PKM, Essay
+PKM
+Essay, Debate
+
+Exploded values:
+
+PKM
+Essay
+Debate
+
+Frequency table:
+
+PKM → 120
+Essay → 95
+Debate → 60
+
+---
+
+# Automatic Option Detection
+
+The application must detect the **main options** and separate **rare responses** as "Other".
+
+Algorithm:
+
+1. Count frequency of each option
+2. Determine threshold:
+
+threshold = max(3, total_responses * 0.02)
+
+3. Options below threshold are classified as OTHER.
+
+Example:
+
+PKM → 120
+Essay → 95
+Debate → 60
+Hackathon → 3
+UI UX Competition → 2
+
+Result:
+
+Main options:
+
+PKM
+Essay
+Debate
+
+Other responses:
+
+Hackathon
+UI UX Competition
+
+---
+
+# Display Rules
+
+Main options should appear as:
+
+• PKM (120)
+• Essay (95)
+• Debate (60)
+• Other (5)
+
+Other responses should be displayed below:
+
+Other responses:
+
+* Hackathon
+* UI UX Competition
+
+---
+
+# Handling "Other" Responses
+
+If a response does not match any main option, it should be grouped into **Other**.
+
+These responses should be stored separately for text analysis.
+
+Other responses can later be used for:
+
+* wordcloud
+* keyword extraction
+
+---
+
+# Column Statistics Section
+
+Each question block may contain a collapsible section called:
+
+Column Stats
+
+Displayed information:
+
+* total responses
+* unique values
+* null ratio
+* detected type metrics
+
+Example:
+
+Unique values: 5
+Null ratio: 0.02
+Delimiter ratio: 0.34
+
+---
+
+# Behavior Rules
+
+Open Text
+
+Only display the dropdown.
+
+No option preview.
+
+---
+
+Single Choice
+
+Option preview may be displayed but without delimiter splitting.
+
+---
+
+Multiple Choice
+
+Must display automatically detected options.
+
+---
+
+Scale
+
+Display value distribution preview.
+
+Example:
+
+1 → 40
+2 → 70
+3 → 100
+4 → 44
+
+---
+
+# Performance Requirements
+
+If dataset rows > 5000:
+
+Option detection must be cached using:
+
+st.cache_data
+
+---
+
+# Code Organization
+
+The logic should reuse existing modules when possible.
+
+Relevant modules:
+
+utils/multi_select_analysis.py
+utils/question_detection.py
+
+New helper functions may be added if necessary.
+
+---
+
+# Expected Result
+
+The analysis page should behave like a **survey configuration panel** similar to Google Forms.
+
+Users should easily review each question and configure the correct analysis type.
+
+The interface should prioritize readability and clarity over density.
+
+---
+
+# Future Extensions
+
+Possible improvements:
+
+* editable option list
+* merging similar options
+* fuzzy matching for typo detection
+* automatic chart recommendation
+
+These features are not required in this implementation.
 </file>
 
 <file path="planning_docs.md">
@@ -1085,111 +1388,6 @@ def load_saved_dataset(filename: str) -> pd.DataFrame:
     return None
 </file>
 
-<file path="utils/multi_select_analysis.py">
-"""
-Multi Select Analysis Utility
-Handles multiple choice / checkbox question analysis.
-"""
-
-import pandas as pd
-
-
-def split_and_explode(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.Series:
-    """
-    Split comma-separated values and explode into individual rows.
-    Returns a cleaned Series with individual values.
-    """
-    series = df[column].dropna().astype(str)
-    exploded = series.str.split(delimiter).explode()
-    exploded = exploded.str.strip()
-    exploded = exploded[exploded != ""]
-    return exploded
-
-
-def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.DataFrame:
-    """
-    Analyze a multiple choice column.
-    Pipeline: split → explode → count frequency
-    Returns a DataFrame with columns: [Value, Count, Percentage]
-    """
-    exploded = split_and_explode(df, column, delimiter)
-    counts = exploded.value_counts().reset_index()
-    counts.columns = ["Value", "Count"]
-    total_responses = df[column].dropna().shape[0]
-    counts["Percentage"] = (counts["Count"] / total_responses * 100).round(2)
-    return counts
-
-
-def multi_choice_combinations(df: pd.DataFrame, column: str, delimiter: str = ",", top_n: int = 10) -> pd.DataFrame:
-    """
-    Analyze the most common combinations of multi-choice answers.
-    """
-    series = df[column].dropna().astype(str)
-    # Normalize: sort items within each response
-    normalized = series.apply(
-        lambda x: ", ".join(sorted([item.strip() for item in x.split(delimiter) if item.strip()]))
-    )
-    counts = normalized.value_counts().head(top_n).reset_index()
-    counts.columns = ["Combination", "Count"]
-    return counts
-</file>
-
-<file path="utils/pivot_analysis.py">
-"""
-Pivot Analysis Utility
-Handles single choice and scale analysis.
-"""
-
-import pandas as pd
-
-
-def single_choice_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
-    """
-    Analyze a single choice column using value_counts.
-    Returns a DataFrame with columns: [Value, Count, Percentage]
-    """
-    counts = df[column].value_counts().reset_index()
-    counts.columns = ["Value", "Count"]
-    total = counts["Count"].sum()
-    counts["Percentage"] = (counts["Count"] / total * 100).round(2)
-    return counts
-
-
-def scale_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
-    """
-    Analyze a scale/Likert column using value_counts sorted by index.
-    Returns a DataFrame with columns: [Scale, Count, Percentage]
-    """
-    counts = df[column].value_counts().sort_index().reset_index()
-    counts.columns = ["Scale", "Count"]
-    total = counts["Count"].sum()
-    counts["Percentage"] = (counts["Count"] / total * 100).round(2)
-    return counts
-
-
-def scale_statistics(df: pd.DataFrame, column: str) -> dict:
-    """
-    Calculate basic statistics for a scale column.
-    """
-    series = pd.to_numeric(df[column], errors="coerce").dropna()
-    return {
-        "mean": round(series.mean(), 2),
-        "median": round(series.median(), 2),
-        "mode": series.mode().tolist(),
-        "std": round(series.std(), 2),
-        "min": series.min(),
-        "max": series.max(),
-        "count": int(series.count()),
-    }
-
-
-def cross_tabulation(df: pd.DataFrame, col1: str, col2: str) -> pd.DataFrame:
-    """
-    Create a cross-tabulation between two columns.
-    """
-    return pd.crosstab(df[col1], df[col2], margins=True, margins_name="Total")
-</file>
-
 <file path="utils/question_detection.py">
 """
 Question Type Detection Utility
@@ -1476,6 +1674,170 @@ def generate_wordcloud(word_freq: Counter, width: int = 800, height: int = 400,
     ).generate_from_frequencies(dict(word_freq))
 
     return wc
+</file>
+
+<file path="utils/multi_select_analysis.py">
+"""
+Multi Select Analysis Utility
+Handles multiple choice / checkbox question analysis.
+"""
+
+import pandas as pd
+import streamlit as st
+
+
+def split_and_explode(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.Series:
+    """
+    Split comma-separated values and explode into individual rows.
+    Returns a cleaned Series with individual values.
+    """
+    series = df[column].dropna().astype(str)
+    exploded = series.str.split(delimiter).explode()
+    exploded = exploded.str.strip()
+    exploded = exploded[exploded != ""]
+    return exploded
+
+
+def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.DataFrame:
+    """
+    Analyze a multiple choice column.
+    Pipeline: split → explode → count frequency
+    Returns a DataFrame with columns: [Value, Count, Percentage]
+    """
+    exploded = split_and_explode(df, column, delimiter)
+    counts = exploded.value_counts().reset_index()
+    counts.columns = ["Value", "Count"]
+    total_responses = df[column].dropna().shape[0]
+    counts["Percentage"] = (counts["Count"] / total_responses * 100).round(2)
+    return counts
+
+
+def multi_choice_combinations(df: pd.DataFrame, column: str, delimiter: str = ",", top_n: int = 10) -> pd.DataFrame:
+    """
+    Analyze the most common combinations of multi-choice answers.
+    """
+    series = df[column].dropna().astype(str)
+    # Normalize: sort items within each response
+    normalized = series.apply(
+        lambda x: ", ".join(sorted([item.strip() for item in x.split(delimiter) if item.strip()]))
+    )
+    counts = normalized.value_counts().head(top_n).reset_index()
+    counts.columns = ["Combination", "Count"]
+    return counts
+
+
+@st.cache_data(show_spinner=False)
+def get_multiple_choice_preview(series: pd.Series, delimiter: str = ",") -> dict:
+    """
+    Extract answer options, count them, and group rare answers into 'Other'.
+    Cached for performance on large datasets.
+    """
+    exploded = series.dropna().astype(str).str.split(delimiter).explode()
+    exploded = exploded.str.strip()
+    exploded = exploded[exploded != ""]
+    
+    counts = exploded.value_counts()
+    total_responses = len(exploded)
+    
+    if total_responses == 0:
+        return {"main": [], "other": [], "other_count": 0}
+        
+    threshold = max(3, total_responses * 0.02)
+    
+    main_options = counts[counts >= threshold]
+    other_options = counts[counts < threshold]
+    
+    return {
+        "main": [(k, v) for k, v in main_options.items()],
+        "other": other_options.index.tolist(),
+        "other_count": len(other_options)
+    }
+</file>
+
+<file path="utils/pivot_analysis.py">
+"""
+Pivot Analysis Utility
+Handles single choice and scale analysis.
+"""
+
+import pandas as pd
+import streamlit as st
+
+
+def single_choice_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """
+    Analyze a single choice column using value_counts.
+    Returns a DataFrame with columns: [Value, Count, Percentage]
+    """
+    counts = df[column].value_counts().reset_index()
+    counts.columns = ["Value", "Count"]
+    total = counts["Count"].sum()
+    counts["Percentage"] = (counts["Count"] / total * 100).round(2)
+    return counts
+
+
+def scale_analysis(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """
+    Analyze a scale/Likert column using value_counts sorted by index.
+    Returns a DataFrame with columns: [Scale, Count, Percentage]
+    """
+    counts = df[column].value_counts().sort_index().reset_index()
+    counts.columns = ["Scale", "Count"]
+    total = counts["Count"].sum()
+    counts["Percentage"] = (counts["Count"] / total * 100).round(2)
+    return counts
+
+
+def scale_statistics(df: pd.DataFrame, column: str) -> dict:
+    """
+    Calculate basic statistics for a scale column.
+    """
+    series = pd.to_numeric(df[column], errors="coerce").dropna()
+    return {
+        "mean": round(series.mean(), 2),
+        "median": round(series.median(), 2),
+        "mode": series.mode().tolist(),
+        "std": round(series.std(), 2),
+        "min": series.min(),
+        "max": series.max(),
+        "count": int(series.count()),
+    }
+
+
+def cross_tabulation(df: pd.DataFrame, col1: str, col2: str) -> pd.DataFrame:
+    """
+    Create a cross-tabulation between two columns.
+    """
+    return pd.crosstab(df[col1], df[col2], margins=True, margins_name="Total")
+
+
+@st.cache_data(show_spinner=False)
+def get_single_choice_preview(series: pd.Series) -> dict:
+    """
+    Extract answer options, count them, and group rare answers into 'Other'.
+    Cached for performance on large datasets.
+    """
+    counts = series.dropna().astype(str).str.strip().value_counts()
+    
+    # Remove empty strings if any
+    if "" in counts.index:
+        counts = counts.drop("")
+        
+    total_responses = counts.sum()
+    
+    if total_responses == 0:
+        return {"main": [], "other": [], "other_count": 0}
+        
+    threshold = max(3, total_responses * 0.02)
+    
+    main_options = counts[counts >= threshold]
+    other_options = counts[counts < threshold]
+    
+    return {
+        "main": [(k, v) for k, v in main_options.items()],
+        "other": other_options.index.tolist(),
+        "other_count": len(other_options)
+    }
 </file>
 
 <file path="app.py">
@@ -2280,11 +2642,595 @@ with st.sidebar:
 </file>
 
 <file path="pages/4_visualization.py">
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.pivot_analysis import single_choice_analysis, scale_analysis
+from utils.multi_select_analysis import multi_choice_analysis
+from utils.export_helpers import table_to_png
+from utils.theme import inject_theme_css, get_light_plotly_layout
+
+st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
+
+inject_theme_css()
+
+PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
+                 "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
+COLOR_SCALES = ["Purples", "Blues", "Greens", "Reds", "Viridis", "Plasma", "Inferno", "Turbo"]
+
+st.markdown("# 📊 Visualization")
+
+if "df" not in st.session_state or st.session_state.df is None:
+    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
+    st.stop()
+
+df = st.session_state.df
+
+# --------------- Settings ---------------
+with st.sidebar:
+    st.markdown("### 🎨 Pengaturan Visualisasi")
+    chart_theme = st.selectbox("Color Scale", COLOR_SCALES, index=0)
+    chart_height = st.slider("Tinggi Chart", 300, 800, 500, step=50)
+    show_values = st.checkbox("Tampilkan Nilai", value=True)
+
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar chart Plotly berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
+
+    st.markdown("---")
+    if "df" in st.session_state and st.session_state.df is not None:
+        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+
+EXPORT_LAYOUT = get_light_plotly_layout()
+
+# --------------- Column Selection ---------------
+st.markdown("### 📌 Pilih Kolom dan Tipe Chart")
+
+col_select, type_select, chart_select = st.columns(3)
+
+with col_select:
+    selected_col = st.selectbox("Kolom", df.columns.tolist())
+
+with type_select:
+    data_type = st.selectbox(
+        "Tipe Data",
+        ["single_choice", "multiple_choice", "scale"],
+        format_func=lambda x: x.replace("_", " ").title(),
+    )
+
+with chart_select:
+    chart_options = {
+        "single_choice": ["Bar Chart", "Pie Chart", "Donut Chart", "Treemap"],
+        "multiple_choice": ["Horizontal Bar", "Bar Chart", "Treemap"],
+        "scale": ["Bar Chart", "Area Chart", "Line Chart"],
+    }
+    chart_type = st.selectbox("Tipe Chart", chart_options.get(data_type, ["Bar Chart"]))
+
+st.markdown("---")
+
+# --------------- Generate Visualization ---------------
+if selected_col:
+    # Get analysis data based on type
+    if data_type == "single_choice":
+        result = single_choice_analysis(df, selected_col)
+        val_col, count_col = "Value", "Count"
+    elif data_type == "multiple_choice":
+        result = multi_choice_analysis(df, selected_col)
+        val_col, count_col = "Value", "Count"
+    elif data_type == "scale":
+        result = scale_analysis(df, selected_col)
+        val_col, count_col = "Scale", "Count"
+    else:
+        result = None
+
+    if result is not None and not result.empty:
+        st.markdown(f"### 📊 {chart_type} — {selected_col}")
+
+        text_arg = count_col if show_values else None
+
+        if chart_type == "Bar Chart":
+            fig = px.bar(
+                result, x=val_col, y=count_col,
+                color=val_col, color_discrete_sequence=PLOTLY_COLORS,
+                text=text_arg,
+            )
+            if show_values:
+                fig.update_traces(textposition="outside")
+            fig.update_layout(showlegend=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+            fig.update_xaxes(type="category")
+
+        elif chart_type == "Horizontal Bar":
+            fig = px.bar(
+                result, x=count_col, y=val_col,
+                orientation="h",
+                color=count_col, color_continuous_scale=chart_theme,
+                text=text_arg,
+            )
+            if show_values:
+                fig.update_traces(textposition="outside")
+            fig.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed", title=None), height=chart_height, margin=dict(t=50, b=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+
+        elif chart_type == "Pie Chart":
+            fig = px.pie(
+                result, names=val_col, values=count_col,
+                color_discrete_sequence=PLOTLY_COLORS,
+            )
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+            fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
+
+        elif chart_type == "Donut Chart":
+            fig = px.pie(
+                result, names=val_col, values=count_col,
+                color_discrete_sequence=PLOTLY_COLORS,
+                hole=0.45,
+            )
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+            fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
+
+        elif chart_type == "Treemap":
+            fig = px.treemap(
+                result, path=[val_col], values=count_col,
+                color=count_col, color_continuous_scale=chart_theme,
+            )
+            fig.update_layout(coloraxis_showscale=False, height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+
+        elif chart_type == "Area Chart":
+            fig = px.area(
+                result, x=val_col, y=count_col,
+                color_discrete_sequence=PLOTLY_COLORS,
+            )
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+            fig.update_xaxes(type="category")
+
+        elif chart_type == "Line Chart":
+            fig = px.line(
+                result, x=val_col, y=count_col,
+                markers=True,
+                color_discrete_sequence=PLOTLY_COLORS,
+            )
+            fig.update_layout(height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
+            fig.update_xaxes(type="category")
+
+        else:
+            fig = None
+
+        if fig:
+            # Custom filename for Plotly's built-in PNG download button
+            chart_config = {
+                "toImageButtonOptions": {
+                    "filename": f"{selected_col}_{chart_type.replace(' ', '_').lower()}",
+                    "width": 1200,
+                    "height": chart_height,
+                    "scale": 2,
+                },
+            }
+            st.plotly_chart(fig, use_container_width=True, config=chart_config, theme=None if force_light_mode else "streamlit")
+
+            # Export options
+            st.markdown("---")
+            st.markdown("### 📥 Ekspor")
+
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
+
+            with col_exp1:
+                csv_data = result.to_csv(index=False)
+                st.download_button(
+                    "📄 Download Data (CSV)",
+                    data=csv_data,
+                    file_name=f"{selected_col}_analysis.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+
+            with col_exp2:
+                html_data = fig.to_html(include_plotlyjs="cdn")
+                st.download_button(
+                    "📊 Download Chart (HTML)",
+                    data=html_data,
+                    file_name=f"{selected_col}_chart.html",
+                    mime="text/html",
+                    use_container_width=True,
+                )
+
+            with col_exp3:
+                try:
+                    table_png = table_to_png(result, title=f"{selected_col} — {data_type.replace('_',' ').title()}")
+                    st.download_button(
+                        "📋 Download Tabel (PNG)",
+                        data=table_png,
+                        file_name=f"{selected_col}_table.png",
+                        mime="image/png",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"Table PNG export error: {e}")
+
+        # Data table
+        with st.expander("📋 Lihat Data Tabel"):
+            st.dataframe(result, use_container_width=True, hide_index=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan.")
 </file>
 
 <file path="pages/3_analysis.py">
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_statistics, cross_tabulation, get_single_choice_preview
+from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations, get_multiple_choice_preview
+from utils.text_analysis import analyze_text_column, get_top_keywords
+from utils.export_helpers import table_to_png
+from utils.question_detection import detect_question_type, analyze_column_features
+from utils.theme import inject_theme_css, get_light_plotly_layout
+
+st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
+
+inject_theme_css()
+
+# Custom Plotly color sequence (to keep brand colors)
+PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
+                 "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
+LIGHT_LAYOUT = get_light_plotly_layout()
+
+with st.sidebar:
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar chart Plotly berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
+
+    if st.button("Reset Pengaturan Kolom", use_container_width=True):
+        st.session_state.question_types = {}
+        st.rerun()
+
+st.markdown("# 📈 Analysis")
+
+if "df" not in st.session_state or st.session_state.df is None:
+    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
+    st.stop()
+
+df = st.session_state.df
+
+# --------------- Question Type Configuration ---------------
+st.markdown("### ⚙️ Konfigurasi Tipe Pertanyaan")
+st.caption("Tentukan tipe setiap kolom untuk menjalankan analisis yang sesuai. Tipe terdeteksi otomatis — Anda bisa override manual.")
+
+TYPE_OPTIONS = ["skip", "single_choice", "multiple_choice", "scale", "open_text"]
+
+if "question_types" not in st.session_state:
+    st.session_state.question_types = {}
+
+# Pre-compute detections (cached per dataset to avoid re-running)
+if "detected_types" not in st.session_state or st.session_state.get("_det_id") != id(df):
+    st.session_state.detected_types = {}
+    st.session_state.detected_features = {}
+    for col in df.columns:
+        st.session_state.detected_types[col] = detect_question_type(df[col])
+        st.session_state.detected_features[col] = analyze_column_features(df[col])
+    st.session_state._det_id = id(df)
+
+# Show configuration in a vertical block layout
+st.markdown("---")
+
+for col_name in df.columns:
+    suggested = st.session_state.detected_types.get(col_name, "skip")
+    current_val = st.session_state.question_types.get(col_name, suggested)
+    default_idx = TYPE_OPTIONS.index(current_val) if current_val in TYPE_OPTIONS else 0
+    
+    with st.container():
+        # Block style header
+        c1, c2 = st.columns([3, 1])
+        
+        with c1:
+            st.markdown(f"#### {col_name}")
+            # Badge
+            badge_color = "#43e97b" if current_val == suggested else "#fa709a"
+            st.markdown(
+                f'<span style="background:{badge_color};color:#111;padding:2px 8px;'
+                f'border-radius:8px;font-size:0.75rem;">🤖 Suggested: {suggested}</span>',
+                unsafe_allow_html=True,
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Preview section based on currently selected type
+            if current_val == "multiple_choice":
+                st.caption("**Options Preview (Multiple Choice):**")
+                prev_data = get_multiple_choice_preview(df[col_name])
+                for opt, count in prev_data["main"]:
+                    st.markdown(f"• {opt} ({count})")
+                if prev_data["other_count"] > 0:
+                    st.markdown(f"• **Other** ({prev_data['other_count']})")
+                    with st.expander("Lihat Other responses"):
+                        for oth in prev_data["other"]:
+                            st.markdown(f"- {oth}")
+                            
+            elif current_val == "single_choice":
+                st.caption("**Options Preview (Single Choice):**")
+                prev_data = get_single_choice_preview(df[col_name])
+                for opt, count in prev_data["main"]:
+                    st.markdown(f"• {opt} ({count})")
+                if prev_data["other_count"] > 0:
+                    st.markdown(f"• **Other** ({prev_data['other_count']})")
+                    with st.expander("Lihat Other responses"):
+                        for oth in prev_data["other"]:
+                            st.markdown(f"- {oth}")
+                            
+            elif current_val == "scale":
+                st.caption("**Distribution Preview (Scale):**")
+                prev_data = df[col_name].value_counts().sort_index()
+                for val, count in prev_data.items():
+                    st.markdown(f"**{val}** &rarr; {count}")
+                    
+            elif current_val == "open_text":
+                st.caption("*Open Text - no options preview*")
+                
+            # Column Stats
+            feat = st.session_state.detected_features.get(col_name, {})
+            with st.expander("📊 Column Stats", expanded=False):
+                st.markdown(
+                    f"- **Total responses:** {df[col_name].count()}\n"
+                    f"- **Unique values:** {int(df[col_name].dropna().nunique())}\n"
+                    f"- **Null ratio:** {feat.get('null_ratio', 0)}\n"
+                    f"- **Delimiter ratio:** {feat.get('delimiter_ratio', 0)}\n"
+                    f"- **Numeric ratio:** {feat.get('numeric_ratio', 0)}\n"
+                    f"- **Avg text length:** {feat.get('avg_text_length', 0)}\n"
+                    f"- **Avg word count:** {feat.get('avg_word_count', 0)}"
+                )
+
+        with c2:
+            st.selectbox(
+                "Tipe Pertanyaan",
+                options=TYPE_OPTIONS,
+                index=default_idx,
+                key=f"qtype_{col_name}",
+                label_visibility="collapsed"
+            )
+            # We must update session state immediately so the preview reflects the choice
+            st.session_state.question_types[col_name] = st.session_state[f"qtype_{col_name}"]
+
+        st.markdown("---")
+
+st.markdown("---")
+
+# --------------- Run Analysis ---------------
+configured_cols = {k: v for k, v in st.session_state.question_types.items() if v != "skip"}
+
+if not configured_cols:
+    st.info("👆 Pilih tipe pertanyaan untuk kolom yang ingin dianalisis, kemudian scroll ke bawah untuk melihat hasil.")
+    st.stop()
+
+st.markdown(f"### 📊 Hasil Analisis ({len(configured_cols)} kolom)")
+
+for col_name, q_type in configured_cols.items():
+    st.markdown(f"""
+    <div class="analysis-header">
+        <h2>{col_name}</h2>
+        <p>Tipe: {q_type.replace('_', ' ').title()}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if q_type == "single_choice":
+        result = single_choice_analysis(df, col_name)
+        col_table, col_chart = st.columns([1, 2])
+
+        with col_table:
+            st.markdown("#### 📋 Tabel Frekuensi")
+            st.dataframe(result, use_container_width=True, hide_index=True)
+
+        with col_chart:
+            tab_bar, tab_pie = st.tabs(["📊 Bar Chart", "🥧 Pie Chart"])
+
+            with tab_bar:
+                fig_bar = px.bar(
+                    result, x="Value", y="Count",
+                    color="Value", color_discrete_sequence=PLOTLY_COLORS,
+                    text="Count",
+                )
+                fig_bar.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_bar.update_layout(**LIGHT_LAYOUT)
+                fig_bar.update_traces(textposition="outside")
+                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
+                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config, theme=None if force_light_mode else "streamlit")
+
+            with tab_pie:
+                fig_pie = px.pie(
+                    result, names="Value", values="Count",
+                    color_discrete_sequence=PLOTLY_COLORS,
+                    hole=0.4,
+                )
+                fig_pie.update_layout(margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_pie.update_layout(**LIGHT_LAYOUT)
+                fig_pie.update_traces(textinfo="label+percent")
+                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2}}
+                st.plotly_chart(fig_pie, use_container_width=True, config=pie_config, theme=None if force_light_mode else "streamlit")
+
+        # Export buttons
+        exp1, exp2 = st.columns(2)
+        with exp1:
+            try:
+                tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi")
+                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
+                                   file_name=f"{col_name}_table.png", mime="image/png",
+                                   use_container_width=True, key=f"dl_tbl_{col_name}")
+            except Exception:
+                pass
+        with exp2:
+            csv_data = result.to_csv(index=False)
+            st.download_button("📄 Download Data (CSV)", data=csv_data,
+                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
+                               use_container_width=True, key=f"dl_csv_{col_name}")
+
+    elif q_type == "scale":
+        result = scale_analysis(df, col_name)
+        stats = scale_statistics(df, col_name)
+
+        col_stats, col_chart = st.columns([1, 2])
+
+        with col_stats:
+            st.markdown("#### 📋 Distribusi")
+            st.dataframe(result, use_container_width=True, hide_index=True)
+
+            st.markdown("#### 📊 Statistik")
+            stat_cols = st.columns(2)
+            with stat_cols[0]:
+                st.metric("Mean", stats["mean"])
+                st.metric("Median", stats["median"])
+            with stat_cols[1]:
+                st.metric("Std Dev", stats["std"])
+                st.metric("Responses", stats["count"])
+
+        with col_chart:
+            fig_scale = px.bar(
+                result, x="Scale", y="Count",
+                color="Count", color_continuous_scale="Purples",
+                text="Count",
+            )
+            fig_scale.update_layout(coloraxis_showscale=False, margin=dict(t=40, b=40, l=40, r=40))
+            if force_light_mode: fig_scale.update_layout(**LIGHT_LAYOUT)
+            fig_scale.update_traces(textposition="outside")
+            fig_scale.update_xaxes(type="category")
+            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
+            st.plotly_chart(fig_scale, use_container_width=True, config=scale_config, theme=None if force_light_mode else "streamlit")
+
+        # Export buttons
+        exp1, exp2 = st.columns(2)
+        with exp1:
+            try:
+                tbl_png = table_to_png(result, title=f"{col_name} — Distribusi Scale")
+                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
+                                   file_name=f"{col_name}_table.png", mime="image/png",
+                                   use_container_width=True, key=f"dl_tbl_{col_name}")
+            except Exception:
+                pass
+        with exp2:
+            csv_data = result.to_csv(index=False)
+            st.download_button("📄 Download Data (CSV)", data=csv_data,
+                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
+                               use_container_width=True, key=f"dl_csv_{col_name}")
+
+    elif q_type == "multiple_choice":
+        result = multi_choice_analysis(df, col_name)
+
+        col_table, col_chart = st.columns([1, 2])
+
+        with col_table:
+            st.markdown("#### 📋 Frekuensi Jawaban")
+            st.dataframe(result, use_container_width=True, hide_index=True)
+
+            with st.expander("🔗 Kombinasi Populer"):
+                combos = multi_choice_combinations(df, col_name)
+                st.dataframe(combos, use_container_width=True, hide_index=True)
+
+        with col_chart:
+            fig_multi = px.bar(
+                result, x="Count", y="Value",
+                orientation="h",
+                color="Count", color_continuous_scale="Purples",
+                text="Count",
+            )
+            fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed", title=None), margin=dict(t=40, b=40))
+            if force_light_mode: fig_multi.update_layout(**LIGHT_LAYOUT)
+            fig_multi.update_traces(textposition="outside")
+            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
+            st.plotly_chart(fig_multi, use_container_width=True, config=multi_config, theme=None if force_light_mode else "streamlit")
+
+        # Export buttons
+        exp1, exp2 = st.columns(2)
+        with exp1:
+            try:
+                tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi Jawaban")
+                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
+                                   file_name=f"{col_name}_table.png", mime="image/png",
+                                   use_container_width=True, key=f"dl_tbl_{col_name}")
+            except Exception:
+                pass
+        with exp2:
+            csv_data = result.to_csv(index=False)
+            st.download_button("📄 Download Data (CSV)", data=csv_data,
+                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
+                               use_container_width=True, key=f"dl_csv_{col_name}")
+
+    elif q_type == "open_text":
+        analysis = analyze_text_column(df, col_name)
+        top_kw = get_top_keywords(analysis["word_freq"], top_n=15)
+
+        col_stats, col_chart = st.columns([1, 2])
+
+        with col_stats:
+            st.markdown("#### 📊 Statistik Teks")
+            st.metric("Total Respons", analysis["total_responses"])
+            st.metric("Total Kata", analysis["total_words"])
+            st.metric("Kata Unik", analysis["unique_words"])
+
+            st.markdown("#### 🔑 Top Keywords")
+            st.dataframe(top_kw, use_container_width=True, hide_index=True)
+
+        with col_chart:
+            fig_text = px.bar(
+                top_kw, x="Frequency", y="Keyword",
+                orientation="h",
+                color="Frequency", color_continuous_scale="Purples",
+                text="Frequency",
+            )
+            fig_text.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
+            if force_light_mode: fig_text.update_layout(**LIGHT_LAYOUT)
+            fig_text.update_traces(textposition="outside")
+            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
+            st.plotly_chart(fig_text, use_container_width=True, config=text_config, theme=None if force_light_mode else "streamlit")
+
+            st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
+
+        # Export buttons
+        exp1, exp2 = st.columns(2)
+        with exp1:
+            try:
+                tbl_png = table_to_png(top_kw, title=f"{col_name} — Top Keywords")
+                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
+                                   file_name=f"{col_name}_keywords_table.png", mime="image/png",
+                                   use_container_width=True, key=f"dl_tbl_{col_name}")
+            except Exception:
+                pass
+        with exp2:
+            csv_data = top_kw.to_csv(index=False)
+            st.download_button("📄 Download Data (CSV)", data=csv_data,
+                               file_name=f"{col_name}_keywords.csv", mime="text/csv",
+                               use_container_width=True, key=f"dl_csv_{col_name}")
+
+    st.markdown("---")
+
+# Sidebar
+with st.sidebar:
+    st.markdown("---")
+    if "df" in st.session_state and st.session_state.df is not None:
+        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+        st.markdown("---")
+        st.markdown("**Kolom Terkonfigurasi:**")
+        for col_name, q_type in configured_cols.items():
+            st.caption(f"• {col_name}: `{q_type}`")
 </file>
 
 </files>
