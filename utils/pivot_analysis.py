@@ -83,6 +83,7 @@ def get_single_choice_preview(series: pd.Series) -> dict:
     
     return {
         "all": counts.index.tolist(),
+        "counts": counts.to_dict(),
         "main": [(k, v) for k, v in main_options_series.items()],
         "main_names": main_options_series.index.tolist(),
         "other": other_options.index.tolist(),
