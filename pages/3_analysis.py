@@ -11,6 +11,7 @@ from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_s
 from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
+from utils.question_detection import detect_question_type, analyze_column_features
 
 st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
 
@@ -52,10 +53,21 @@ df = st.session_state.df
 
 # --------------- Question Type Configuration ---------------
 st.markdown("### ⚙️ Konfigurasi Tipe Pertanyaan")
-st.caption("Tentukan tipe setiap kolom untuk menjalankan analisis yang sesuai.")
+st.caption("Tentukan tipe setiap kolom untuk menjalankan analisis yang sesuai. Tipe terdeteksi otomatis — Anda bisa override manual.")
+
+TYPE_OPTIONS = ["skip", "single_choice", "multiple_choice", "scale", "open_text"]
 
 if "question_types" not in st.session_state:
     st.session_state.question_types = {}
+
+# Pre-compute detections (cached per dataset to avoid re-running)
+if "detected_types" not in st.session_state or st.session_state.get("_det_id") != id(df):
+    st.session_state.detected_types = {}
+    st.session_state.detected_features = {}
+    for col in df.columns:
+        st.session_state.detected_types[col] = detect_question_type(df[col])
+        st.session_state.detected_features[col] = analyze_column_features(df[col])
+    st.session_state._det_id = id(df)
 
 # Show configuration in expander
 with st.expander("📋 Konfigurasi Kolom", expanded=True):
@@ -68,15 +80,38 @@ with st.expander("📋 Konfigurasi Kolom", expanded=True):
             idx = i + j
             if idx < len(columns):
                 col_name = columns[idx]
+                suggested = st.session_state.detected_types.get(col_name, "skip")
+                default_idx = TYPE_OPTIONS.index(suggested) if suggested in TYPE_OPTIONS else 0
+
                 with col_widget:
                     q_type = st.selectbox(
                         f"**{col_name}**",
-                        options=["skip", "single_choice", "multiple_choice", "scale", "open_text"],
-                        index=0,
+                        options=TYPE_OPTIONS,
+                        index=default_idx,
                         key=f"qtype_{col_name}",
                         help=f"Contoh data: {', '.join(str(v) for v in df[col_name].dropna().head(3).tolist())}",
                     )
                     st.session_state.question_types[col_name] = q_type
+
+                    # Suggestion badge
+                    badge_color = "#43e97b" if q_type == suggested else "#fa709a"
+                    st.markdown(
+                        f'<span style="background:{badge_color};color:#111;padding:2px 8px;'
+                        f'border-radius:8px;font-size:0.75rem;">🤖 Suggested: {suggested}</span>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Stats tooltip
+                    feat = st.session_state.detected_features.get(col_name, {})
+                    with st.expander("📊 Column Stats"):
+                        st.markdown(
+                            f"- **Unique values:** {int(df[col_name].dropna().nunique())}\n"
+                            f"- **Null ratio:** {feat.get('null_ratio', 0)}\n"
+                            f"- **Delimiter ratio:** {feat.get('delimiter_ratio', 0)}\n"
+                            f"- **Numeric ratio:** {feat.get('numeric_ratio', 0)}\n"
+                            f"- **Avg text length:** {feat.get('avg_text_length', 0)}\n"
+                            f"- **Avg word count:** {feat.get('avg_word_count', 0)}"
+                        )
 
 st.markdown("---")
 
