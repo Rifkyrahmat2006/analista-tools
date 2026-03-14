@@ -43,6 +43,7 @@ The content is organized as follows:
 .devcontainer/devcontainer.json
 .gitignore
 app.py
+auto-detect-question-type.md
 pages/1_upload_data.py
 pages/2_data_cleaning.py
 pages/3_analysis.py
@@ -56,7 +57,9 @@ utils/data_loader.py
 utils/export_helpers.py
 utils/multi_select_analysis.py
 utils/pivot_analysis.py
+utils/question_detection.py
 utils/text_analysis.py
+utils/theme.py
 </directory_structure>
 
 <files>
@@ -102,741 +105,299 @@ This section contains the contents of the repository's files.
 /venv
 </file>
 
-<file path="app.py">
-import streamlit as st
-
-st.set_page_config(
-    page_title="Survey Insight Dashboard",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# --------------- Custom CSS ---------------
-st.markdown("""
-<style>
-    /* Import Google Font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Hero gradient header */
-    .hero-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 16px;
-        padding: 3rem 2.5rem;
-        margin-bottom: 2rem;
-        color: white;
-        text-align: center;
-    }
-    .hero-container h1 {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: white;
-    }
-    .hero-container p {
-        font-size: 1.15rem;
-        opacity: 0.9;
-        margin: 0;
-    }
-
-    /* Feature cards */
-    .feature-card {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 14px;
-        padding: 1.8rem 1.5rem;
-        text-align: center;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        height: 100%;
-    }
-    .feature-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
-    }
-    .feature-icon {
-        font-size: 2.8rem;
-        margin-bottom: 0.8rem;
-    }
-    .feature-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 0.4rem;
-        color: #e0e0e0;
-    }
-    .feature-desc {
-        font-size: 0.88rem;
-        color: #9a9ab0;
-        line-height: 1.5;
-    }
-
-    /* Pipeline step */
-    .pipeline-step {
-        display: inline-block;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border-radius: 10px;
-        padding: 0.6rem 1.2rem;
-        margin: 0.3rem;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    .pipeline-arrow {
-        display: inline-block;
-        color: #667eea;
-        font-size: 1.3rem;
-        margin: 0 0.2rem;
-        vertical-align: middle;
-    }
-
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-    }
-
-    /* Hide default streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
+<file path="auto-detect-question-type.md">
+You are a senior Python engineer improving an existing Streamlit survey analytics application.
 
-# --------------- Hero Section ---------------
-st.markdown("""
-<div class="hero-container">
-    <h1>📊 Survey Insight Dashboard</h1>
-    <p>Upload, bersihkan, analisis, dan visualisasikan data survei Anda dengan mudah</p>
-</div>
-""", unsafe_allow_html=True)
-
-# --------------- Feature Cards ---------------
-st.markdown("### ✨ Fitur Utama")
-st.markdown("")
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-features = [
-    ("📤", "Upload Data", "Upload CSV atau Excel langsung dari Google Form export"),
-    ("🧹", "Data Cleaning", "Edit, hapus, rename, dan bersihkan data dengan mudah"),
-    ("📈", "Analisis", "Analisis otomatis berdasarkan tipe pertanyaan survei"),
-    ("📊", "Visualisasi", "Chart interaktif dengan Plotly — bar, pie, dan lainnya"),
-    ("☁️", "Wordcloud", "Analisis teks terbuka dan generate wordcloud"),
-]
-
-for col, (icon, title, desc) in zip([col1, col2, col3, col4, col5], features):
-    with col:
-        st.markdown(f"""
-        <div class="feature-card">
-            <div class="feature-icon">{icon}</div>
-            <div class="feature-title">{title}</div>
-            <div class="feature-desc">{desc}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-st.markdown("")
-st.markdown("")
-
-# --------------- Pipeline ---------------
-st.markdown("### 🔄 Alur Kerja")
-st.markdown("")
-
-steps = ["Upload Dataset", "Preview Data", "Data Cleaning", "Konfigurasi Tipe", "Analisis", "Visualisasi"]
-pipeline_html = ""
-for i, step in enumerate(steps):
-    pipeline_html += f'<span class="pipeline-step">{step}</span>'
-    if i < len(steps) - 1:
-        pipeline_html += '<span class="pipeline-arrow">→</span>'
-
-st.markdown(f'<div style="text-align:center; padding: 1rem 0;">{pipeline_html}</div>', unsafe_allow_html=True)
-
-st.markdown("")
-
-# --------------- Quick Start ---------------
-st.markdown("### 🚀 Mulai Cepat")
-st.markdown("""
-1. Buka halaman **📤 Upload Data** di sidebar
-2. Upload file CSV atau Excel dari Google Form
-3. Bersihkan data di halaman **🧹 Data Cleaning**
-4. Konfigurasi tipe pertanyaan dan jalankan analisis di **📈 Analysis**
-5. Lihat visualisasi di **📊 Visualization** atau generate **☁️ Wordcloud**
-""")
-
-# --------------- Session State Info ---------------
-with st.sidebar:
-    st.markdown("---")
-    if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ Dataset loaded: **{st.session_state.get('dataset_name', 'Unknown')}**")
-        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
-    else:
-        st.info("📤 Belum ada dataset. Upload data terlebih dahulu.")
-</file>
-
-<file path="pages/1_upload_data.py">
-import streamlit as st
-import pandas as pd
-import sys
-from pathlib import Path
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from utils.data_loader import load_file, save_dataset, list_saved_datasets, load_saved_dataset
-
-st.set_page_config(page_title="Upload Data", page_icon="📤", layout="wide")
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .upload-zone {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 2px dashed rgba(102, 126, 234, 0.4);
-        border-radius: 16px;
-        padding: 2rem;
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
-    .stat-card {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1.2rem;
-        text-align: center;
-    }
-    .stat-value { font-size: 1.8rem; font-weight: 700; color: #667eea; }
-    .stat-label { font-size: 0.85rem; color: #9a9ab0; margin-top: 0.3rem; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("# 📤 Upload Data")
-st.markdown("Upload dataset survei dari file **CSV** atau **Excel** (.xlsx/.xls)")
-
-# --------------- Upload Section ---------------
-tab_upload, tab_saved = st.tabs(["📁 Upload Baru", "💾 Dataset Tersimpan"])
-
-with tab_upload:
-    uploaded_file = st.file_uploader(
-        "Pilih file CSV atau Excel",
-        type=["csv", "xlsx", "xls"],
-        help="Mendukung file dari Google Form export, CSV, atau Excel",
-    )
-
-    if uploaded_file is not None:
-        df = load_file(uploaded_file)
-
-        if df is not None:
-            st.session_state.df = df
-            st.session_state.dataset_name = uploaded_file.name
-
-            st.success(f"✅ File **{uploaded_file.name}** berhasil dimuat!")
-
-            # Statistics cards
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="stat-value">{df.shape[0]}</div>
-                    <div class="stat-label">Total Baris</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col2:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="stat-value">{df.shape[1]}</div>
-                    <div class="stat-label">Total Kolom</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col3:
-                null_count = int(df.isnull().sum().sum())
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="stat-value">{null_count}</div>
-                    <div class="stat-label">Nilai Kosong</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col4:
-                dup_count = int(df.duplicated().sum())
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="stat-value">{dup_count}</div>
-                    <div class="stat-label">Baris Duplikat</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            st.markdown("")
-
-            # Preview
-            st.markdown("### 👀 Preview Dataset")
-
-            col_search, col_rows = st.columns([3, 1])
-            with col_search:
-                search_col = st.multiselect(
-                    "Pilih kolom untuk ditampilkan",
-                    options=df.columns.tolist(),
-                    default=df.columns.tolist(),
-                )
-            with col_rows:
-                n_rows = st.number_input("Jumlah baris", min_value=5, max_value=len(df), value=min(50, len(df)))
-
-            if search_col:
-                st.dataframe(df[search_col].head(n_rows), use_container_width=True, height=400)
-            else:
-                st.dataframe(df.head(n_rows), use_container_width=True, height=400)
-
-            # Column info
-            with st.expander("ℹ️ Informasi Kolom", expanded=False):
-                col_info = pd.DataFrame({
-                    "Tipe Data": df.dtypes.astype(str),
-                    "Non-Null": df.count(),
-                    "Null": df.isnull().sum(),
-                    "Unique": df.nunique(),
-                }).reset_index()
-                col_info.columns = ["Kolom", "Tipe Data", "Non-Null", "Null", "Unique"]
-                st.dataframe(col_info, use_container_width=True, hide_index=True)
-
-            # Save dataset
-            st.markdown("---")
-            st.markdown("### 💾 Simpan Dataset")
-            save_name = st.text_input("Nama file untuk disimpan", value=uploaded_file.name)
-            if st.button("💾 Simpan ke Lokal", type="primary"):
-                path = save_dataset(df, save_name)
-                st.success(f"✅ Dataset disimpan di: `{path}`")
-
-with tab_saved:
-    saved_files = list_saved_datasets()
-    if saved_files:
-        selected_file = st.selectbox("Pilih dataset tersimpan", saved_files)
-        if st.button("📂 Muat Dataset", type="primary"):
-            df = load_saved_dataset(selected_file)
-            if df is not None:
-                st.session_state.df = df
-                st.session_state.dataset_name = selected_file
-                st.success(f"✅ Dataset **{selected_file}** dimuat!")
-                st.dataframe(df.head(50), use_container_width=True, height=400)
-    else:
-        st.info("📭 Belum ada dataset tersimpan. Upload data terlebih dahulu.")
-
-# Sidebar status
-with st.sidebar:
-    st.markdown("---")
-    if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
-        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
-    else:
-        st.info("📤 Belum ada dataset.")
-</file>
-
-<file path="pages/2_data_cleaning.py">
-import streamlit as st
-import pandas as pd
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from utils.data_cleaning import (
-    strip_whitespace,
-    lowercase_normalize,
-    remove_null_rows,
-    remove_duplicate_rows,
-    replace_values,
-    rename_column,
-    drop_columns,
-    fill_null_values,
-    get_data_summary,
-)
-
-st.set_page_config(page_title="Data Cleaning", page_icon="🧹", layout="wide")
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .clean-stat {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: center;
-    }
-    .clean-stat-val { font-size: 1.5rem; font-weight: 700; color: #667eea; }
-    .clean-stat-lbl { font-size: 0.8rem; color: #9a9ab0; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("# 🧹 Data Cleaning")
-
-if "df" not in st.session_state or st.session_state.df is None:
-    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu di halaman **📤 Upload Data**.")
-    st.stop()
-
-df = st.session_state.df.copy()
-
-# --------------- Data Summary ---------------
-summary = get_data_summary(df)
-
-col1, col2, col3, col4 = st.columns(4)
-for col, (label, value) in zip(
-    [col1, col2, col3, col4],
-    [
-        ("Total Baris", summary["total_rows"]),
-        ("Total Kolom", summary["total_columns"]),
-        ("Total Null", summary["total_nulls"]),
-        ("Baris Duplikat", summary["duplicate_rows"]),
-    ],
-):
-    with col:
-        st.markdown(f"""
-        <div class="clean-stat">
-            <div class="clean-stat-val">{value}</div>
-            <div class="clean-stat-lbl">{label}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-st.markdown("")
-
-# --------------- Cleaning Operations ---------------
-tab_quick, tab_replace, tab_columns, tab_editor = st.tabs([
-    "⚡ Quick Clean", "🔄 Replace Values", "📝 Kelola Kolom", "✏️ Edit Data"
-])
-
-with tab_quick:
-    st.markdown("### Operasi Pembersihan Cepat")
-
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-        if st.button("🔤 Strip Whitespace", use_container_width=True, help="Hapus spasi di awal dan akhir teks"):
-            df = strip_whitespace(df)
-            st.session_state.df = df
-            st.success("✅ Whitespace dihapus!")
-            st.rerun()
-
-        if st.button("🗑️ Hapus Baris Null", use_container_width=True, help="Hapus baris yang memiliki nilai kosong"):
-            before = len(df)
-            df = remove_null_rows(df)
-            st.session_state.df = df
-            removed = before - len(df)
-            st.success(f"✅ {removed} baris null dihapus!")
-            st.rerun()
-
-    with col_b:
-        if st.button("🔡 Lowercase Semua Teks", use_container_width=True, help="Ubah semua teks menjadi huruf kecil"):
-            df = lowercase_normalize(df)
-            st.session_state.df = df
-            st.success("✅ Teks dinormalisasi ke lowercase!")
-            st.rerun()
-
-        if st.button("🚫 Hapus Duplikat", use_container_width=True, help="Hapus baris yang sama persis"):
-            before = len(df)
-            df = remove_duplicate_rows(df)
-            st.session_state.df = df
-            removed = before - len(df)
-            st.success(f"✅ {removed} baris duplikat dihapus!")
-            st.rerun()
-
-    st.markdown("---")
-    st.markdown("#### Hapus Null per Kolom")
-    null_cols = [col for col in df.columns if df[col].isnull().sum() > 0]
-    if null_cols:
-        selected_null_col = st.selectbox("Pilih kolom", null_cols, key="null_col")
-        null_action = st.radio(
-            "Tindakan",
-            ["Hapus baris dengan null", "Isi dengan nilai tertentu"],
-            key="null_action",
-            horizontal=True,
-        )
-
-        if null_action == "Hapus baris dengan null":
-            if st.button("Jalankan", key="exec_null_drop"):
-                before = len(df)
-                df = remove_null_rows(df, subset=[selected_null_col])
-                st.session_state.df = df
-                st.success(f"✅ {before - len(df)} baris dihapus!")
-                st.rerun()
-        else:
-            fill_val = st.text_input("Nilai pengisi", key="fill_val")
-            if st.button("Jalankan", key="exec_null_fill") and fill_val:
-                df = fill_null_values(df, selected_null_col, fill_val)
-                st.session_state.df = df
-                st.success(f"✅ Null di kolom '{selected_null_col}' diisi dengan '{fill_val}'!")
-                st.rerun()
-    else:
-        st.info("✅ Tidak ada kolom dengan nilai null.")
-
-with tab_replace:
-    st.markdown("### Ganti Nilai")
-
-    rep_col = st.selectbox("Pilih kolom", df.columns.tolist(), key="rep_col")
-    if rep_col:
-        unique_vals = df[rep_col].dropna().unique()
-        st.caption(f"Jumlah nilai unik: {len(unique_vals)}")
-
-        if len(unique_vals) <= 50:
-            with st.expander("Lihat nilai unik"):
-                st.write(sorted([str(v) for v in unique_vals]))
-
-        col_old, col_new = st.columns(2)
-        with col_old:
-            old_val = st.text_input("Nilai lama", key="old_val")
-        with col_new:
-            new_val = st.text_input("Nilai baru", key="new_val")
-
-        if st.button("🔄 Ganti", type="primary", key="exec_replace"):
-            if old_val:
-                df = replace_values(df, rep_col, old_val, new_val)
-                st.session_state.df = df
-                st.success(f"✅ '{old_val}' → '{new_val}' di kolom '{rep_col}'")
-                st.rerun()
-
-with tab_columns:
-    st.markdown("### Kelola Kolom")
-
-    col_rename, col_drop = st.columns(2)
-
-    with col_rename:
-        st.markdown("#### Rename Kolom")
-        rename_col = st.selectbox("Pilih kolom", df.columns.tolist(), key="rename_col")
-        new_name = st.text_input("Nama baru", key="new_col_name")
-        if st.button("✏️ Rename", key="exec_rename") and new_name:
-            df = rename_column(df, rename_col, new_name)
-            st.session_state.df = df
-            st.success(f"✅ Kolom '{rename_col}' → '{new_name}'")
-            st.rerun()
-
-    with col_drop:
-        st.markdown("#### Hapus Kolom")
-        drop_cols = st.multiselect("Pilih kolom untuk dihapus", df.columns.tolist(), key="drop_cols")
-        if st.button("🗑️ Hapus Kolom", key="exec_drop") and drop_cols:
-            df = drop_columns(df, drop_cols)
-            st.session_state.df = df
-            st.success(f"✅ {len(drop_cols)} kolom dihapus!")
-            st.rerun()
-
-with tab_editor:
-    st.markdown("### Edit Data Langsung")
-    st.caption("Klik sel untuk mengedit. Perubahan akan otomatis disimpan saat Anda klik di luar sel.")
-
-    edited_df = st.data_editor(
-        df,
-        use_container_width=True,
-        height=500,
-        num_rows="dynamic",
-    )
-
-    if st.button("💾 Simpan Perubahan", type="primary", key="save_edits"):
-        st.session_state.df = edited_df
-        st.success("✅ Perubahan disimpan!")
-        st.rerun()
-
-# --------------- Preview ---------------
-st.markdown("---")
-st.markdown("### 👀 Preview Data (Setelah Cleaning)")
-st.dataframe(st.session_state.df, use_container_width=True, height=400)
-
-# Sidebar
-with st.sidebar:
-    st.markdown("---")
-    if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
-        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
-</file>
-
-<file path="pages/5_wordcloud.py">
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import sys
-from pathlib import Path
-from io import BytesIO
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
-
-st.set_page_config(page_title="Wordcloud", page_icon="☁️", layout="wide")
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .wc-stat {
-        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 1.2rem;
-        text-align: center;
-    }
-    .wc-stat-val { font-size: 1.6rem; font-weight: 700; color: #667eea; }
-    .wc-stat-lbl { font-size: 0.82rem; color: #9a9ab0; margin-top: 0.3rem; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("# ☁️ Wordcloud Generator")
-
-if "df" not in st.session_state or st.session_state.df is None:
-    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
-    st.stop()
-
-df = st.session_state.df
-
-# Identify text columns (object dtype)
-text_columns = df.select_dtypes(include=["object"]).columns.tolist()
-
-if not text_columns:
-    st.warning("⚠️ Tidak ada kolom teks dalam dataset.")
-    st.stop()
-
-# --------------- Settings ---------------
-col_config, col_preview = st.columns([1, 2])
-
-with col_config:
-    st.markdown("### ⚙️ Pengaturan")
-
-    selected_col = st.selectbox("📝 Pilih Kolom Teks", text_columns)
-
-    st.markdown("---")
-
-    max_words = st.slider("Jumlah Kata Maksimum", 20, 200, 100, step=10)
-    top_n = st.slider("Top Keywords", 5, 50, 20)
-
-    colormap = st.selectbox(
-        "🎨 Skema Warna",
-        ["Set2", "Set3", "Pastel1", "Dark2", "Accent", "tab10", "viridis", "plasma", "inferno", "cool"],
-    )
-
-    bg_color = st.color_picker("Background Color", value="#0e1117")
-
-    st.markdown("---")
-
-    extra_stopwords_input = st.text_area(
-        "🚫 Stopwords Tambahan",
-        placeholder="Masukkan kata yang ingin diabaikan, pisahkan dengan koma.\nContoh: dll, dsb, yg, tdk",
-        height=100,
-    )
-    extra_stopwords = set()
-    if extra_stopwords_input:
-        extra_stopwords = {w.strip().lower() for w in extra_stopwords_input.split(",") if w.strip()}
-
-    generate_btn = st.button("🚀 Generate Wordcloud", type="primary", use_container_width=True)
-
-with col_preview:
-    if generate_btn and selected_col:
-        with st.spinner("Menganalisis teks..."):
-            analysis = analyze_text_column(df, selected_col, extra_stopwords=extra_stopwords)
-            word_freq = analysis["word_freq"]
-            top_kw = get_top_keywords(word_freq, top_n=top_n)
-
-        # Stats
-        c1, c2, c3 = st.columns(3)
-        for c, (val, lbl) in zip(
-            [c1, c2, c3],
-            [
-                (analysis["total_responses"], "Total Respons"),
-                (analysis["total_words"], "Total Kata"),
-                (analysis["unique_words"], "Kata Unik"),
-            ],
-        ):
-            with c:
-                st.markdown(f"""
-                <div class="wc-stat">
-                    <div class="wc-stat-val">{val}</div>
-                    <div class="wc-stat-lbl">{lbl}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        st.markdown("")
-
-        if word_freq:
-            # Generate Wordcloud
-            wc = generate_wordcloud(
-                word_freq,
-                width=1000,
-                height=500,
-                background_color=bg_color,
-                colormap=colormap,
-                max_words=max_words,
-            )
-
-            if wc:
-                # Display wordcloud
-                fig, ax = plt.subplots(figsize=(12, 6))
-                ax.imshow(wc, interpolation="bilinear")
-                ax.axis("off")
-                fig.patch.set_facecolor(bg_color)
-                plt.tight_layout(pad=0)
-                st.pyplot(fig, use_container_width=True)
-
-                # Download wordcloud
-                buf = BytesIO()
-                wc.to_image().save(buf, format="PNG")
-                buf.seek(0)
-                st.download_button(
-                    "📥 Download Wordcloud (PNG)",
-                    data=buf,
-                    file_name=f"wordcloud_{selected_col}.png",
-                    mime="image/png",
-                    use_container_width=True,
-                )
-
-            # Top keywords
-            st.markdown("### 🔑 Top Keywords")
-
-            import plotly.express as px
-
-            fig = px.bar(
-                top_kw, x="Frequency", y="Keyword",
-                orientation="h",
-                color="Frequency",
-                color_continuous_scale="Purples",
-                text="Frequency",
-            )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="Inter", color="#e0e0e0"),
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=max(300, top_n * 25),
-                coloraxis_showscale=False,
-                yaxis=dict(autorange="reversed"),
-            )
-            fig.update_traces(textposition="outside")
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Data table
-            with st.expander("📋 Lihat Tabel Kata"):
-                st.dataframe(top_kw, use_container_width=True, hide_index=True)
-
-                csv_data = top_kw.to_csv(index=False)
-                st.download_button(
-                    "📄 Download Keywords (CSV)",
-                    data=csv_data,
-                    file_name=f"keywords_{selected_col}.csv",
-                    mime="text/csv",
-                )
-        else:
-            st.warning("⚠️ Tidak ada kata yang ditemukan setelah cleaning.")
-
-    elif not generate_btn:
-        st.markdown("")
-        st.markdown("")
-        st.info("👈 Pilih kolom teks dan klik **Generate Wordcloud** untuk memulai analisis.")
-
-# Sidebar
-with st.sidebar:
-    st.markdown("---")
-    if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
-        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+The repository already contains the following architecture:
+
+* app.py
+* pages/
+  1_upload_data.py
+  2_data_cleaning.py
+  3_analysis.py
+  4_visualization.py
+  5_wordcloud.py
+* utils/
+  data_loader.py
+  data_cleaning.py
+  pivot_analysis.py
+  multi_select_analysis.py
+  text_analysis.py
+  export_helpers.py
+
+The application allows users to configure question types manually for survey columns:
+
+* single_choice
+* multiple_choice
+* scale
+* open_text
+* skip
+
+Currently, there is NO automatic detection of question types.
+
+Your task is to implement an **advanced intelligent question type detection algorithm**.
+
+The detection should be much more robust than simple comma detection.
+
+Do NOT break existing architecture.
+
+---
+
+FEATURE GOAL
+
+Automatically analyze dataset columns and **suggest the most likely question type**.
+
+The algorithm should return:
+
+* single_choice
+* multiple_choice
+* scale
+* open_text
+* skip
+
+Users must still be able to manually override the suggestion.
+
+---
+
+IMPLEMENTATION
+
+Create new module:
+
+utils/question_detection.py
+
+Main function:
+
+detect_question_type(series: pd.Series) -> str
+
+---
+
+DETECTION PIPELINE
+
+The detection algorithm must analyze several statistical features of the column.
+
+Compute these metrics:
+
+1. total_values
+2. null_ratio
+3. unique_count
+4. unique_ratio
+5. comma_ratio
+6. delimiter_ratio
+7. avg_text_length
+8. numeric_ratio
+
+---
+
+STEP 1 — SKIP DETECTION
+
+If the column is mostly empty:
+
+null_ratio > 0.8
+
+Return:
+
+skip
+
+---
+
+STEP 2 — SCALE DETECTION
+
+Convert column to numeric.
+
+numeric_ratio = count_numeric / total_values
+
+If:
+
+numeric_ratio > 0.8
+AND unique_count <= 10
+AND value_range <= 20
+
+Return:
+
+scale
+
+Examples:
+
+1 2 3 4 5
+1–4 Likert scale
+
+---
+
+STEP 3 — MULTIPLE CHOICE DETECTION
+
+Multiple choice responses usually contain repeated delimiters.
+
+Detect these delimiters:
+
+","
+";"
+"|"
+"/"
+
+delimiter_ratio = percentage of values containing any delimiter.
+
+Also compute:
+
+avg_items_per_response
+
+Example:
+
+"PKM, Essay"
+"Debate, Essay"
+
+Rules:
+
+delimiter_ratio > 0.25
+AND avg_items_per_response >= 1.5
+
+Return:
+
+multiple_choice
+
+---
+
+STEP 4 — OPEN TEXT DETECTION
+
+Open text responses usually have longer text.
+
+Calculate:
+
+avg_text_length
+avg_word_count
+
+Rules:
+
+avg_text_length > 40
+OR avg_word_count > 8
+
+Return:
+
+open_text
+
+---
+
+STEP 5 — SINGLE CHOICE DETECTION
+
+If none of the above conditions match:
+
+Check:
+
+unique_count <= 30
+AND avg_text_length < 40
+
+Return:
+
+single_choice
+
+Examples:
+
+Faculty
+Program Study
+City
+
+---
+
+EDGE CASE HANDLING
+
+Avoid false detection of multiple_choice when comma is used inside a single label.
+
+Example:
+
+"Teknik Informatika, S1"
+
+Solution:
+
+Check average number of delimiters per response.
+
+Example rule:
+
+if delimiter_ratio > 0.25
+AND average_delimiter_count > 1
+
+---
+
+RETURN FORMAT
+
+Return string representing type:
+
+single_choice
+multiple_choice
+scale
+open_text
+skip
+
+---
+
+EXTRA FEATURE
+
+Also implement helper function:
+
+analyze_column_features(series)
+
+Return dictionary:
+
+{
+"null_ratio": float,
+"unique_ratio": float,
+"delimiter_ratio": float,
+"numeric_ratio": float,
+"avg_text_length": float,
+"avg_word_count": float
+}
+
+---
+
+INTEGRATION
+
+Modify `pages/3_analysis.py`.
+
+When rendering question type selectboxes:
+
+1. run detect_question_type(df[col])
+2. use result as the **default selection**
+
+Display suggestion text:
+
+Suggested: multiple_choice
+
+---
+
+UX IMPROVEMENT
+
+Add tooltip showing column statistics:
+
+Example:
+
+Unique values: 12
+Delimiter ratio: 0.42
+Avg text length: 12
+
+---
+
+CODE QUALITY
+
+Requirements:
+
+* use type hints
+* modular functions
+* docstrings
+* follow existing utils structure
+
+---
+
+OUTPUT
+
+Return:
+
+1. full implementation of:
+
+utils/question_detection.py
+
+2. modified section of:
+
+pages/3_analysis.py
+
+---
 </file>
 
 <file path="planning_docs.md">
@@ -1629,6 +1190,173 @@ def cross_tabulation(df: pd.DataFrame, col1: str, col2: str) -> pd.DataFrame:
     return pd.crosstab(df[col1], df[col2], margins=True, margins_name="Total")
 </file>
 
+<file path="utils/question_detection.py">
+"""
+Question Type Detection Utility
+Automatically detects the most likely question type for survey columns.
+
+Detection Pipeline (priority order):
+  1. skip         — mostly empty column
+  2. scale        — numeric Likert-style values
+  3. multiple_choice — delimiter-separated multi-answers
+  4. open_text    — long free-text responses
+  5. single_choice — categorical with limited unique values
+"""
+
+import pandas as pd
+import numpy as np
+from typing import Dict
+
+DELIMITERS = [",", ";", "|", "/"]
+
+
+def analyze_column_features(series: pd.Series) -> Dict[str, float]:
+    """
+    Compute statistical features of a column for question type detection.
+
+    Returns a dictionary with keys:
+        null_ratio, unique_ratio, delimiter_ratio,
+        numeric_ratio, avg_text_length, avg_word_count
+    """
+    total = len(series)
+    if total == 0:
+        return {
+            "null_ratio": 1.0,
+            "unique_ratio": 0.0,
+            "delimiter_ratio": 0.0,
+            "numeric_ratio": 0.0,
+            "avg_text_length": 0.0,
+            "avg_word_count": 0.0,
+        }
+
+    null_ratio = series.isna().sum() / total
+
+    non_null = series.dropna().astype(str)
+    non_null_count = len(non_null)
+
+    if non_null_count == 0:
+        return {
+            "null_ratio": null_ratio,
+            "unique_ratio": 0.0,
+            "delimiter_ratio": 0.0,
+            "numeric_ratio": 0.0,
+            "avg_text_length": 0.0,
+            "avg_word_count": 0.0,
+        }
+
+    unique_count = non_null.nunique()
+    unique_ratio = unique_count / non_null_count
+
+    # Delimiter detection
+    has_delimiter = non_null.apply(
+        lambda x: any(d in str(x) for d in DELIMITERS)
+    )
+    delimiter_ratio = has_delimiter.sum() / non_null_count
+
+    # Numeric detection
+    numeric_converted = pd.to_numeric(non_null, errors="coerce")
+    numeric_ratio = numeric_converted.notna().sum() / non_null_count
+
+    # Text length metrics
+    avg_text_length = non_null.str.len().mean()
+    avg_word_count = non_null.str.split().apply(len).mean()
+
+    return {
+        "null_ratio": round(null_ratio, 4),
+        "unique_ratio": round(unique_ratio, 4),
+        "delimiter_ratio": round(delimiter_ratio, 4),
+        "numeric_ratio": round(numeric_ratio, 4),
+        "avg_text_length": round(avg_text_length, 2),
+        "avg_word_count": round(avg_word_count, 2),
+    }
+
+
+def _compute_avg_delimiter_count(series: pd.Series) -> float:
+    """Count average number of delimiters per non-null response."""
+    non_null = series.dropna().astype(str)
+    if len(non_null) == 0:
+        return 0.0
+
+    def count_delimiters(text: str) -> int:
+        return sum(text.count(d) for d in DELIMITERS)
+
+    return non_null.apply(count_delimiters).mean()
+
+
+def _compute_avg_items_per_response(series: pd.Series) -> float:
+    """
+    Estimate average number of items per response by splitting on
+    the most common delimiter.
+    """
+    non_null = series.dropna().astype(str)
+    if len(non_null) == 0:
+        return 1.0
+
+    # Find the dominant delimiter
+    best_delim = ","
+    best_count = 0
+    for d in DELIMITERS:
+        total_count = non_null.str.count(f"\\{d}" if d in (".", "|") else d).sum()
+        if total_count > best_count:
+            best_count = total_count
+            best_delim = d
+
+    items_per_row = non_null.apply(
+        lambda x: len([p.strip() for p in x.split(best_delim) if p.strip()])
+    )
+    return items_per_row.mean()
+
+
+def detect_question_type(series: pd.Series) -> str:
+    """
+    Detect the most likely question type for a survey column.
+
+    Returns one of:
+        'skip', 'scale', 'multiple_choice', 'open_text', 'single_choice'
+    """
+    features = analyze_column_features(series)
+
+    # --- STEP 1: Skip Detection ---
+    if features["null_ratio"] > 0.8:
+        return "skip"
+
+    non_null = series.dropna().astype(str)
+    non_null_count = len(non_null)
+
+    if non_null_count == 0:
+        return "skip"
+
+    # --- STEP 2: Scale Detection ---
+    if features["numeric_ratio"] > 0.8:
+        numeric_vals = pd.to_numeric(non_null, errors="coerce").dropna()
+        unique_count = numeric_vals.nunique()
+        value_range = numeric_vals.max() - numeric_vals.min() if len(numeric_vals) > 0 else 0
+
+        if unique_count <= 10 and value_range <= 20:
+            return "scale"
+
+    # --- STEP 3: Multiple Choice Detection ---
+    if features["delimiter_ratio"] > 0.25:
+        avg_items = _compute_avg_items_per_response(series)
+        avg_delim_count = _compute_avg_delimiter_count(series)
+
+        # Guard against false positives (e.g. "Teknik Informatika, S1")
+        if avg_items >= 1.5 and avg_delim_count > 1:
+            return "multiple_choice"
+
+    # --- STEP 4: Open Text Detection ---
+    if features["avg_text_length"] > 40 or features["avg_word_count"] > 8:
+        return "open_text"
+
+    # --- STEP 5: Single Choice Detection ---
+    unique_count = non_null.nunique()
+    if unique_count <= 30 and features["avg_text_length"] < 40:
+        return "single_choice"
+
+    # Fallback
+    return "open_text"
+</file>
+
 <file path="utils/text_analysis.py">
 """
 Text Analysis Utility
@@ -1750,10 +1478,447 @@ def generate_wordcloud(word_freq: Counter, width: int = 800, height: int = 400,
     return wc
 </file>
 
+<file path="app.py">
+import streamlit as st
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from utils.theme import inject_theme_css
+
+st.set_page_config(
+    page_title="Survey Insight Dashboard",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+inject_theme_css()
+
+# --------------- Hero Section ---------------
+st.markdown("""
+<div class="hero-container">
+    <h1>📊 Survey Insight Dashboard</h1>
+    <p>Upload, bersihkan, analisis, dan visualisasikan data survei Anda dengan mudah</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --------------- Feature Cards ---------------
+st.markdown("### ✨ Fitur Utama")
+st.markdown("")
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+features = [
+    ("📤", "Upload Data", "Upload CSV atau Excel langsung dari Google Form export"),
+    ("🧹", "Data Cleaning", "Edit, hapus, rename, dan bersihkan data dengan mudah"),
+    ("📈", "Analisis", "Analisis otomatis berdasarkan tipe pertanyaan survei"),
+    ("📊", "Visualisasi", "Chart interaktif dengan Plotly — bar, pie, dan lainnya"),
+    ("☁️", "Wordcloud", "Analisis teks terbuka dan generate wordcloud"),
+]
+
+for col, (icon, title, desc) in zip([col1, col2, col3, col4, col5], features):
+    with col:
+        st.markdown(f"""
+        <div class="feature-card">
+            <div class="feature-icon">{icon}</div>
+            <div class="feature-title">{title}</div>
+            <div class="feature-desc">{desc}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("")
+st.markdown("")
+
+# --------------- Pipeline ---------------
+st.markdown("### 🔄 Alur Kerja")
+st.markdown("")
+
+steps = ["Upload Dataset", "Preview Data", "Data Cleaning", "Konfigurasi Tipe", "Analisis", "Visualisasi"]
+pipeline_html = ""
+for i, step in enumerate(steps):
+    pipeline_html += f'<span class="pipeline-step">{step}</span>'
+    if i < len(steps) - 1:
+        pipeline_html += '<span class="pipeline-arrow">→</span>'
+
+st.markdown(f'<div style="text-align:center; padding: 1rem 0;">{pipeline_html}</div>', unsafe_allow_html=True)
+
+st.markdown("")
+
+# --------------- Quick Start ---------------
+st.markdown("### 🚀 Mulai Cepat")
+st.markdown("""
+1. Buka halaman **📤 Upload Data** di sidebar
+2. Upload file CSV atau Excel dari Google Form
+3. Bersihkan data di halaman **🧹 Data Cleaning**
+4. Konfigurasi tipe pertanyaan dan jalankan analisis di **📈 Analysis**
+5. Lihat visualisasi di **📊 Visualization** atau generate **☁️ Wordcloud**
+""")
+
+# --------------- Session State Info ---------------
+with st.sidebar:
+    st.markdown("---")
+    if "df" in st.session_state and st.session_state.df is not None:
+        st.success(f"✅ Dataset loaded: **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+    else:
+        st.info("📤 Belum ada dataset. Upload data terlebih dahulu.")
+</file>
+
+<file path="pages/1_upload_data.py">
+import streamlit as st
+import pandas as pd
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.data_loader import load_file, save_dataset, list_saved_datasets, load_saved_dataset
+from utils.theme import inject_theme_css
+
+st.set_page_config(page_title="Upload Data", page_icon="📤", layout="wide")
+
+inject_theme_css()
+
+st.markdown("# 📤 Upload Data")
+st.markdown("Upload dataset survei dari file **CSV** atau **Excel** (.xlsx/.xls)")
+
+# --------------- Upload Section ---------------
+tab_upload, tab_saved = st.tabs(["📁 Upload Baru", "💾 Dataset Tersimpan"])
+
+with tab_upload:
+    uploaded_file = st.file_uploader(
+        "Pilih file CSV atau Excel",
+        type=["csv", "xlsx", "xls"],
+        help="Mendukung file dari Google Form export, CSV, atau Excel",
+    )
+
+    if uploaded_file is not None:
+        df = load_file(uploaded_file)
+
+        if df is not None:
+            st.session_state.df = df
+            st.session_state.dataset_name = uploaded_file.name
+
+            st.success(f"✅ File **{uploaded_file.name}** berhasil dimuat!")
+
+            # Statistics cards
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{df.shape[0]}</div>
+                    <div class="stat-label">Total Baris</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{df.shape[1]}</div>
+                    <div class="stat-label">Total Kolom</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                null_count = int(df.isnull().sum().sum())
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{null_count}</div>
+                    <div class="stat-label">Nilai Kosong</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                dup_count = int(df.duplicated().sum())
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{dup_count}</div>
+                    <div class="stat-label">Baris Duplikat</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("")
+
+            # Preview
+            st.markdown("### 👀 Preview Dataset")
+
+            col_search, col_rows = st.columns([3, 1])
+            with col_search:
+                search_col = st.multiselect(
+                    "Pilih kolom untuk ditampilkan",
+                    options=df.columns.tolist(),
+                    default=df.columns.tolist(),
+                )
+            with col_rows:
+                n_rows = st.number_input("Jumlah baris", min_value=5, max_value=len(df), value=min(50, len(df)))
+
+            if search_col:
+                st.dataframe(df[search_col].head(n_rows), use_container_width=True, height=400)
+            else:
+                st.dataframe(df.head(n_rows), use_container_width=True, height=400)
+
+            # Column info
+            with st.expander("ℹ️ Informasi Kolom", expanded=False):
+                col_info = pd.DataFrame({
+                    "Tipe Data": df.dtypes.astype(str),
+                    "Non-Null": df.count(),
+                    "Null": df.isnull().sum(),
+                    "Unique": df.nunique(),
+                }).reset_index()
+                col_info.columns = ["Kolom", "Tipe Data", "Non-Null", "Null", "Unique"]
+                st.dataframe(col_info, use_container_width=True, hide_index=True)
+
+            # Save dataset
+            st.markdown("---")
+            st.markdown("### 💾 Simpan Dataset")
+            save_name = st.text_input("Nama file untuk disimpan", value=uploaded_file.name)
+            if st.button("💾 Simpan ke Lokal", type="primary"):
+                path = save_dataset(df, save_name)
+                st.success(f"✅ Dataset disimpan di: `{path}`")
+
+with tab_saved:
+    saved_files = list_saved_datasets()
+    if saved_files:
+        selected_file = st.selectbox("Pilih dataset tersimpan", saved_files)
+        if st.button("📂 Muat Dataset", type="primary"):
+            df = load_saved_dataset(selected_file)
+            if df is not None:
+                st.session_state.df = df
+                st.session_state.dataset_name = selected_file
+                st.success(f"✅ Dataset **{selected_file}** dimuat!")
+                st.dataframe(df.head(50), use_container_width=True, height=400)
+    else:
+        st.info("📭 Belum ada dataset tersimpan. Upload data terlebih dahulu.")
+
+# Sidebar status
+with st.sidebar:
+    st.markdown("---")
+    if "df" in st.session_state and st.session_state.df is not None:
+        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+    else:
+        st.info("📤 Belum ada dataset.")
+</file>
+
+<file path="pages/2_data_cleaning.py">
+import streamlit as st
+import pandas as pd
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.data_cleaning import (
+    strip_whitespace,
+    lowercase_normalize,
+    remove_null_rows,
+    remove_duplicate_rows,
+    replace_values,
+    rename_column,
+    drop_columns,
+    fill_null_values,
+    get_data_summary,
+)
+from utils.theme import inject_theme_css
+
+st.set_page_config(page_title="Data Cleaning", page_icon="🧹", layout="wide")
+
+inject_theme_css()
+
+st.markdown("# 🧹 Data Cleaning")
+
+if "df" not in st.session_state or st.session_state.df is None:
+    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu di halaman **📤 Upload Data**.")
+    st.stop()
+
+df = st.session_state.df.copy()
+
+# --------------- Data Summary ---------------
+summary = get_data_summary(df)
+
+col1, col2, col3, col4 = st.columns(4)
+for col, (label, value) in zip(
+    [col1, col2, col3, col4],
+    [
+        ("Total Baris", summary["total_rows"]),
+        ("Total Kolom", summary["total_columns"]),
+        ("Total Null", summary["total_nulls"]),
+        ("Baris Duplikat", summary["duplicate_rows"]),
+    ],
+):
+    with col:
+        st.markdown(f"""
+        <div class="clean-stat">
+            <div class="clean-stat-val">{value}</div>
+            <div class="clean-stat-lbl">{label}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("")
+
+# --------------- Cleaning Operations ---------------
+tab_quick, tab_replace, tab_columns, tab_editor = st.tabs([
+    "⚡ Quick Clean", "🔄 Replace Values", "📝 Kelola Kolom", "✏️ Edit Data"
+])
+
+with tab_quick:
+    st.markdown("### Operasi Pembersihan Cepat")
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        if st.button("🔤 Strip Whitespace", use_container_width=True, help="Hapus spasi di awal dan akhir teks"):
+            df = strip_whitespace(df)
+            st.session_state.df = df
+            st.success("✅ Whitespace dihapus!")
+            st.rerun()
+
+        if st.button("🗑️ Hapus Baris Null", use_container_width=True, help="Hapus baris yang memiliki nilai kosong"):
+            before = len(df)
+            df = remove_null_rows(df)
+            st.session_state.df = df
+            removed = before - len(df)
+            st.success(f"✅ {removed} baris null dihapus!")
+            st.rerun()
+
+    with col_b:
+        if st.button("🔡 Lowercase Semua Teks", use_container_width=True, help="Ubah semua teks menjadi huruf kecil"):
+            df = lowercase_normalize(df)
+            st.session_state.df = df
+            st.success("✅ Teks dinormalisasi ke lowercase!")
+            st.rerun()
+
+        if st.button("🚫 Hapus Duplikat", use_container_width=True, help="Hapus baris yang sama persis"):
+            before = len(df)
+            df = remove_duplicate_rows(df)
+            st.session_state.df = df
+            removed = before - len(df)
+            st.success(f"✅ {removed} baris duplikat dihapus!")
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("#### Hapus Null per Kolom")
+    null_cols = [col for col in df.columns if df[col].isnull().sum() > 0]
+    if null_cols:
+        selected_null_col = st.selectbox("Pilih kolom", null_cols, key="null_col")
+        null_action = st.radio(
+            "Tindakan",
+            ["Hapus baris dengan null", "Isi dengan nilai tertentu"],
+            key="null_action",
+            horizontal=True,
+        )
+
+        if null_action == "Hapus baris dengan null":
+            if st.button("Jalankan", key="exec_null_drop"):
+                before = len(df)
+                df = remove_null_rows(df, subset=[selected_null_col])
+                st.session_state.df = df
+                st.success(f"✅ {before - len(df)} baris dihapus!")
+                st.rerun()
+        else:
+            fill_val = st.text_input("Nilai pengisi", key="fill_val")
+            if st.button("Jalankan", key="exec_null_fill") and fill_val:
+                df = fill_null_values(df, selected_null_col, fill_val)
+                st.session_state.df = df
+                st.success(f"✅ Null di kolom '{selected_null_col}' diisi dengan '{fill_val}'!")
+                st.rerun()
+    else:
+        st.info("✅ Tidak ada kolom dengan nilai null.")
+
+with tab_replace:
+    st.markdown("### Ganti Nilai")
+
+    rep_col = st.selectbox("Pilih kolom", df.columns.tolist(), key="rep_col")
+    if rep_col:
+        unique_vals = df[rep_col].dropna().unique()
+        st.caption(f"Jumlah nilai unik: {len(unique_vals)}")
+
+        if len(unique_vals) <= 50:
+            with st.expander("Lihat nilai unik"):
+                st.write(sorted([str(v) for v in unique_vals]))
+
+        col_old, col_new = st.columns(2)
+        with col_old:
+            old_val = st.text_input("Nilai lama", key="old_val")
+        with col_new:
+            new_val = st.text_input("Nilai baru", key="new_val")
+
+        if st.button("🔄 Ganti", type="primary", key="exec_replace"):
+            if old_val:
+                df = replace_values(df, rep_col, old_val, new_val)
+                st.session_state.df = df
+                st.success(f"✅ '{old_val}' → '{new_val}' di kolom '{rep_col}'")
+                st.rerun()
+
+with tab_columns:
+    st.markdown("### Kelola Kolom")
+
+    col_rename, col_drop = st.columns(2)
+
+    with col_rename:
+        st.markdown("#### Rename Kolom")
+        rename_col = st.selectbox("Pilih kolom", df.columns.tolist(), key="rename_col")
+        new_name = st.text_input("Nama baru", key="new_col_name")
+        if st.button("✏️ Rename", key="exec_rename") and new_name:
+            df = rename_column(df, rename_col, new_name)
+            st.session_state.df = df
+            st.success(f"✅ Kolom '{rename_col}' → '{new_name}'")
+            st.rerun()
+
+    with col_drop:
+        st.markdown("#### Hapus Kolom")
+        drop_cols = st.multiselect("Pilih kolom untuk dihapus", df.columns.tolist(), key="drop_cols")
+        if st.button("🗑️ Hapus Kolom", key="exec_drop") and drop_cols:
+            df = drop_columns(df, drop_cols)
+            st.session_state.df = df
+            st.success(f"✅ {len(drop_cols)} kolom dihapus!")
+            st.rerun()
+
+with tab_editor:
+    st.markdown("### Edit Data Langsung")
+    st.caption("Klik sel untuk mengedit. Perubahan akan otomatis disimpan saat Anda klik di luar sel.")
+
+    edited_df = st.data_editor(
+        df,
+        use_container_width=True,
+        height=500,
+        num_rows="dynamic",
+    )
+
+    if st.button("💾 Simpan Perubahan", type="primary", key="save_edits"):
+        st.session_state.df = edited_df
+        st.success("✅ Perubahan disimpan!")
+        st.rerun()
+
+# --------------- Preview ---------------
+st.markdown("---")
+st.markdown("### 👀 Preview Data (Setelah Cleaning)")
+st.dataframe(st.session_state.df, use_container_width=True, height=400)
+
+# Sidebar
+with st.sidebar:
+    st.markdown("---")
+    if "df" in st.session_state and st.session_state.df is not None:
+        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
+</file>
+
+<file path="requirements.txt">
+streamlit
+pandas
+plotly
+wordcloud
+streamlit-aggrid
+openpyxl
+nltk
+matplotlib
+</file>
+
 <file path="utils/export_helpers.py">
 """
 Export Utility
 Helpers for exporting tables as PNG for download.
+Always renders in LIGHT theme for print-readiness.
 """
 
 import io
@@ -1766,6 +1931,7 @@ import matplotlib.pyplot as plt
 def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes:
     """
     Render a pandas DataFrame as a styled table PNG using matplotlib.
+    Always uses light theme (white background, dark text) for print-readiness.
     """
     display_df = df.head(max_rows)
     n_rows, n_cols = display_df.shape
@@ -1779,9 +1945,9 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     ax.axis("off")
 
     if title:
-        fig.suptitle(title, fontsize=14, fontweight="bold", color="#e0e0e0", y=0.98)
+        fig.suptitle(title, fontsize=14, fontweight="bold", color="#1a1a2e", y=0.98)
 
-    fig.patch.set_facecolor("#0e1117")
+    fig.patch.set_facecolor("#ffffff")
 
     # Create table
     table = ax.table(
@@ -1797,18 +1963,18 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     table.scale(1, 1.4)
 
     for (row, col), cell in table.get_celld().items():
-        cell.set_edgecolor("#3a3a5c")
+        cell.set_edgecolor("#d0d0e0")
         if row == 0:
-            # Header row
+            # Header row — purple accent
             cell.set_facecolor("#667eea")
             cell.set_text_props(color="white", fontweight="bold", fontsize=11)
         else:
-            # Data rows - alternating colors
+            # Data rows — alternating light colors
             if row % 2 == 0:
-                cell.set_facecolor("#1e1e2e")
+                cell.set_facecolor("#f5f7fa")
             else:
-                cell.set_facecolor("#252540")
-            cell.set_text_props(color="#e0e0e0")
+                cell.set_facecolor("#ffffff")
+            cell.set_text_props(color="#1a1a2e")
 
     plt.tight_layout()
 
@@ -1820,52 +1986,143 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     return buf.getvalue()
 </file>
 
-<file path="pages/3_analysis.py">
+<file path="utils/theme.py">
+"""
+Theme Utility
+Centralized CSS injection for the Streamlit app.
+Uses Streamlit's native theme engine and CSS variables
+to guarantee identical colors in dark/light mode globally.
+"""
+
+import streamlit as st
+
+def get_light_plotly_layout() -> dict:
+    """
+    Return a completely LIGHT Plotly layout.
+    Used when the user forces 'Print Mode' to download a chart on white background.
+    """
+    return dict(
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(family="Inter", color="#1a1a2e"),
+        xaxis=dict(gridcolor="rgba(0,0,0,0.06)", zerolinecolor="rgba(0,0,0,0.06)", automargin=True),
+        yaxis=dict(gridcolor="rgba(0,0,0,0.06)", zerolinecolor="rgba(0,0,0,0.06)", automargin=True),
+    )
+
+
+def inject_theme_css() -> None:
+    """Inject CSS using Streamlit's internal CSS variables for native theming."""
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
+
+        /* Custom component cards */
+        .feature-card, .stat-card, .clean-stat, .wc-stat {{
+            background: var(--secondary-background-color);
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }}
+        .feature-card {{ border-radius: 14px; padding: 1.8rem 1.5rem; height: 100%; }}
+        .feature-card:hover {{
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+        }}
+        .feature-icon {{ font-size: 2.8rem; margin-bottom: 0.8rem; }}
+        .feature-title {{ font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin-bottom: 0.4rem; }}
+        .feature-desc {{ font-size: 0.88rem; color: var(--text-color); opacity: 0.8; line-height: 1.5; }}
+
+        .stat-value, .clean-stat-val, .wc-stat-val {{ font-size: 1.6rem; font-weight: 700; color: var(--primary-color); }}
+        .stat-label, .clean-stat-lbl, .wc-stat-lbl {{ font-size: 0.82rem; color: var(--text-color); opacity: 0.8; margin-top: 0.3rem; }}
+
+        /* Upload zone */
+        .upload-zone {{
+            background: var(--secondary-background-color);
+            border: 2px dashed rgba(102, 126, 234, 0.4);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }}
+
+        /* Analysis header */
+        .analysis-header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            margin-bottom: 1.5rem;
+        }}
+        .analysis-header h2 {{ color: white; margin: 0; }}
+        .analysis-header p {{ color: rgba(255,255,255,0.8); margin: 0.3rem 0 0 0; }}
+
+        /* Hero container */
+        .hero-container {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 3rem 2.5rem;
+            margin-bottom: 2rem;
+            color: white;
+            text-align: center;
+        }}
+        .hero-container h1 {{ font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; color: white; }}
+        .hero-container p {{ font-size: 1.15rem; opacity: 0.9; margin: 0; }}
+
+        /* Pipeline */
+        .pipeline-step {{
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 0.6rem 1.2rem;
+            margin: 0.3rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }}
+        .pipeline-arrow {{
+            display: inline-block;
+            color: #667eea;
+            font-size: 1.3rem;
+            margin: 0 0.2rem;
+            vertical-align: middle;
+        }}
+
+        /* Hide default streamlit elements */
+        #MainMenu {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+    </style>
+    """, unsafe_allow_html=True)
+</file>
+
+<file path="pages/5_wordcloud.py">
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
+from io import BytesIO
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.pivot_analysis import single_choice_analysis, scale_analysis, scale_statistics, cross_tabulation
-from utils.multi_select_analysis import multi_choice_analysis, multi_choice_combinations
-from utils.text_analysis import analyze_text_column, get_top_keywords
-from utils.export_helpers import table_to_png
+from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
+from utils.theme import inject_theme_css, get_light_plotly_layout
 
-st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Wordcloud", page_icon="☁️", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .analysis-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 12px;
-        padding: 1.5rem;
-        color: white;
-        margin-bottom: 1.5rem;
-    }
-    .analysis-header h2 { color: white; margin: 0; }
-    .analysis-header p { color: rgba(255,255,255,0.8); margin: 0.3rem 0 0 0; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+inject_theme_css()
 
-# Custom Plotly theme
-PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
-                 "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter", color="#e0e0e0"),
-    margin=dict(t=40, b=40, l=40, r=40),
-)
+st.markdown("# ☁️ Wordcloud Generator")
 
-st.markdown("# 📈 Analysis")
+with st.sidebar:
+    st.markdown("### 🖨️ Export Settings")
+    force_light_mode = st.checkbox(
+        "Paksa Chart Terang", 
+        help="Aktifkan agar bar chart berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
+    )
 
 if "df" not in st.session_state or st.session_state.df is None:
     st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
@@ -1873,236 +2130,146 @@ if "df" not in st.session_state or st.session_state.df is None:
 
 df = st.session_state.df
 
-# --------------- Question Type Configuration ---------------
-st.markdown("### ⚙️ Konfigurasi Tipe Pertanyaan")
-st.caption("Tentukan tipe setiap kolom untuk menjalankan analisis yang sesuai.")
+# Identify text columns (object dtype)
+text_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
-if "question_types" not in st.session_state:
-    st.session_state.question_types = {}
-
-# Show configuration in expander
-with st.expander("📋 Konfigurasi Kolom", expanded=True):
-    cols_per_row = 3
-    columns = df.columns.tolist()
-
-    for i in range(0, len(columns), cols_per_row):
-        row_cols = st.columns(cols_per_row)
-        for j, col_widget in enumerate(row_cols):
-            idx = i + j
-            if idx < len(columns):
-                col_name = columns[idx]
-                with col_widget:
-                    q_type = st.selectbox(
-                        f"**{col_name}**",
-                        options=["skip", "single_choice", "multiple_choice", "scale", "open_text"],
-                        index=0,
-                        key=f"qtype_{col_name}",
-                        help=f"Contoh data: {', '.join(str(v) for v in df[col_name].dropna().head(3).tolist())}",
-                    )
-                    st.session_state.question_types[col_name] = q_type
-
-st.markdown("---")
-
-# --------------- Run Analysis ---------------
-configured_cols = {k: v for k, v in st.session_state.question_types.items() if v != "skip"}
-
-if not configured_cols:
-    st.info("👆 Pilih tipe pertanyaan untuk kolom yang ingin dianalisis, kemudian scroll ke bawah untuk melihat hasil.")
+if not text_columns:
+    st.warning("⚠️ Tidak ada kolom teks dalam dataset.")
     st.stop()
 
-st.markdown(f"### 📊 Hasil Analisis ({len(configured_cols)} kolom)")
+# --------------- Settings ---------------
+col_config, col_preview = st.columns([1, 2])
 
-for col_name, q_type in configured_cols.items():
-    st.markdown(f"""
-    <div class="analysis-header">
-        <h2>{col_name}</h2>
-        <p>Tipe: {q_type.replace('_', ' ').title()}</p>
-    </div>
-    """, unsafe_allow_html=True)
+with col_config:
+    st.markdown("### ⚙️ Pengaturan")
 
-    if q_type == "single_choice":
-        result = single_choice_analysis(df, col_name)
-        col_table, col_chart = st.columns([1, 2])
-
-        with col_table:
-            st.markdown("#### 📋 Tabel Frekuensi")
-            st.dataframe(result, use_container_width=True, hide_index=True)
-
-        with col_chart:
-            tab_bar, tab_pie = st.tabs(["📊 Bar Chart", "🥧 Pie Chart"])
-
-            with tab_bar:
-                fig_bar = px.bar(
-                    result, x="Value", y="Count",
-                    color="Value", color_discrete_sequence=PLOTLY_COLORS,
-                    text="Count",
-                )
-                fig_bar.update_layout(**PLOTLY_LAYOUT, showlegend=False)
-                fig_bar.update_traces(textposition="outside")
-                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
-                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config)
-
-            with tab_pie:
-                fig_pie = px.pie(
-                    result, names="Value", values="Count",
-                    color_discrete_sequence=PLOTLY_COLORS,
-                    hole=0.4,
-                )
-                fig_pie.update_layout(**PLOTLY_LAYOUT)
-                fig_pie.update_traces(textinfo="label+percent")
-                pie_config = {"toImageButtonOptions": {"filename": f"{col_name}_pie_chart", "scale": 2}}
-                st.plotly_chart(fig_pie, use_container_width=True, config=pie_config)
-
-        # Export buttons
-        exp1, exp2 = st.columns(2)
-        with exp1:
-            try:
-                tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi")
-                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
-                                   file_name=f"{col_name}_table.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_tbl_{col_name}")
-            except Exception:
-                pass
-        with exp2:
-            csv_data = result.to_csv(index=False)
-            st.download_button("📄 Download Data (CSV)", data=csv_data,
-                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
-                               use_container_width=True, key=f"dl_csv_{col_name}")
-
-    elif q_type == "scale":
-        result = scale_analysis(df, col_name)
-        stats = scale_statistics(df, col_name)
-
-        col_stats, col_chart = st.columns([1, 2])
-
-        with col_stats:
-            st.markdown("#### 📋 Distribusi")
-            st.dataframe(result, use_container_width=True, hide_index=True)
-
-            st.markdown("#### 📊 Statistik")
-            stat_cols = st.columns(2)
-            with stat_cols[0]:
-                st.metric("Mean", stats["mean"])
-                st.metric("Median", stats["median"])
-            with stat_cols[1]:
-                st.metric("Std Dev", stats["std"])
-                st.metric("Responses", stats["count"])
-
-        with col_chart:
-            fig_scale = px.bar(
-                result, x="Scale", y="Count",
-                color="Count", color_continuous_scale="Purples",
-                text="Count",
-            )
-            fig_scale.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
-            fig_scale.update_traces(textposition="outside")
-            fig_scale.update_xaxes(type="category")
-            scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
-            st.plotly_chart(fig_scale, use_container_width=True, config=scale_config)
-
-        # Export buttons
-        exp1, exp2 = st.columns(2)
-        with exp1:
-            try:
-                tbl_png = table_to_png(result, title=f"{col_name} — Distribusi Scale")
-                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
-                                   file_name=f"{col_name}_table.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_tbl_{col_name}")
-            except Exception:
-                pass
-        with exp2:
-            csv_data = result.to_csv(index=False)
-            st.download_button("📄 Download Data (CSV)", data=csv_data,
-                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
-                               use_container_width=True, key=f"dl_csv_{col_name}")
-
-    elif q_type == "multiple_choice":
-        result = multi_choice_analysis(df, col_name)
-
-        col_table, col_chart = st.columns([1, 2])
-
-        with col_table:
-            st.markdown("#### 📋 Frekuensi Jawaban")
-            st.dataframe(result, use_container_width=True, hide_index=True)
-
-            with st.expander("🔗 Kombinasi Populer"):
-                combos = multi_choice_combinations(df, col_name)
-                st.dataframe(combos, use_container_width=True, hide_index=True)
-
-        with col_chart:
-            fig_multi = px.bar(
-                result, x="Count", y="Value",
-                orientation="h",
-                color="Count", color_continuous_scale="Purples",
-                text="Count",
-            )
-            fig_multi.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
-            fig_multi.update_traces(textposition="outside")
-            multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
-            st.plotly_chart(fig_multi, use_container_width=True, config=multi_config)
-
-        # Export buttons
-        exp1, exp2 = st.columns(2)
-        with exp1:
-            try:
-                tbl_png = table_to_png(result, title=f"{col_name} — Frekuensi Jawaban")
-                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
-                                   file_name=f"{col_name}_table.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_tbl_{col_name}")
-            except Exception:
-                pass
-        with exp2:
-            csv_data = result.to_csv(index=False)
-            st.download_button("📄 Download Data (CSV)", data=csv_data,
-                               file_name=f"{col_name}_analysis.csv", mime="text/csv",
-                               use_container_width=True, key=f"dl_csv_{col_name}")
-
-    elif q_type == "open_text":
-        analysis = analyze_text_column(df, col_name)
-        top_kw = get_top_keywords(analysis["word_freq"], top_n=15)
-
-        col_stats, col_chart = st.columns([1, 2])
-
-        with col_stats:
-            st.markdown("#### 📊 Statistik Teks")
-            st.metric("Total Respons", analysis["total_responses"])
-            st.metric("Total Kata", analysis["total_words"])
-            st.metric("Kata Unik", analysis["unique_words"])
-
-            st.markdown("#### 🔑 Top Keywords")
-            st.dataframe(top_kw, use_container_width=True, hide_index=True)
-
-        with col_chart:
-            fig_text = px.bar(
-                top_kw, x="Frequency", y="Keyword",
-                orientation="h",
-                color="Frequency", color_continuous_scale="Purples",
-                text="Frequency",
-            )
-            fig_text.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
-            fig_text.update_traces(textposition="outside")
-            text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
-            st.plotly_chart(fig_text, use_container_width=True, config=text_config)
-
-            st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
-
-        # Export buttons
-        exp1, exp2 = st.columns(2)
-        with exp1:
-            try:
-                tbl_png = table_to_png(top_kw, title=f"{col_name} — Top Keywords")
-                st.download_button("📋 Download Tabel (PNG)", data=tbl_png,
-                                   file_name=f"{col_name}_keywords_table.png", mime="image/png",
-                                   use_container_width=True, key=f"dl_tbl_{col_name}")
-            except Exception:
-                pass
-        with exp2:
-            csv_data = top_kw.to_csv(index=False)
-            st.download_button("📄 Download Data (CSV)", data=csv_data,
-                               file_name=f"{col_name}_keywords.csv", mime="text/csv",
-                               use_container_width=True, key=f"dl_csv_{col_name}")
+    selected_col = st.selectbox("📝 Pilih Kolom Teks", text_columns)
 
     st.markdown("---")
+
+    max_words = st.slider("Jumlah Kata Maksimum", 20, 200, 100, step=10)
+    top_n = st.slider("Top Keywords", 5, 50, 20)
+
+    colormap = st.selectbox(
+        "🎨 Skema Warna",
+        ["Set2", "Set3", "Pastel1", "Dark2", "Accent", "tab10", "viridis", "plasma", "inferno", "cool"],
+    )
+
+    bg_color = st.color_picker("Background Color", value="#0e1117")
+
+    st.markdown("---")
+
+    extra_stopwords_input = st.text_area(
+        "🚫 Stopwords Tambahan",
+        placeholder="Masukkan kata yang ingin diabaikan, pisahkan dengan koma.\nContoh: dll, dsb, yg, tdk",
+        height=100,
+    )
+    extra_stopwords = set()
+    if extra_stopwords_input:
+        extra_stopwords = {w.strip().lower() for w in extra_stopwords_input.split(",") if w.strip()}
+
+    generate_btn = st.button("🚀 Generate Wordcloud", type="primary", use_container_width=True)
+
+with col_preview:
+    if generate_btn and selected_col:
+        with st.spinner("Menganalisis teks..."):
+            analysis = analyze_text_column(df, selected_col, extra_stopwords=extra_stopwords)
+            word_freq = analysis["word_freq"]
+            top_kw = get_top_keywords(word_freq, top_n=top_n)
+
+        # Stats
+        c1, c2, c3 = st.columns(3)
+        for c, (val, lbl) in zip(
+            [c1, c2, c3],
+            [
+                (analysis["total_responses"], "Total Respons"),
+                (analysis["total_words"], "Total Kata"),
+                (analysis["unique_words"], "Kata Unik"),
+            ],
+        ):
+            with c:
+                st.markdown(f"""
+                <div class="wc-stat">
+                    <div class="wc-stat-val">{val}</div>
+                    <div class="wc-stat-lbl">{lbl}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("")
+
+        if word_freq:
+            # Generate Wordcloud
+            wc = generate_wordcloud(
+                word_freq,
+                width=1000,
+                height=500,
+                background_color=bg_color,
+                colormap=colormap,
+                max_words=max_words,
+            )
+
+            if wc:
+                # Display wordcloud
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.imshow(wc, interpolation="bilinear")
+                ax.axis("off")
+                fig.patch.set_facecolor(bg_color)
+                plt.tight_layout(pad=0)
+                st.pyplot(fig, use_container_width=True)
+
+                # Download wordcloud
+                buf = BytesIO()
+                wc.to_image().save(buf, format="PNG")
+                buf.seek(0)
+                st.download_button(
+                    "📥 Download Wordcloud (PNG)",
+                    data=buf,
+                    file_name=f"wordcloud_{selected_col}.png",
+                    mime="image/png",
+                    use_container_width=True,
+                )
+
+            # Top keywords
+            st.markdown("### 🔑 Top Keywords")
+
+            LIGHT_LAYOUT = get_light_plotly_layout()
+
+            fig = px.bar(
+                top_kw, x="Frequency", y="Keyword",
+                orientation="h",
+                color="Frequency",
+                color_continuous_scale="Purples",
+                text="Frequency",
+            )
+            fig.update_layout(
+                yaxis=dict(autorange="reversed"),
+                margin=dict(t=20, b=20),
+                height=max(300, top_n * 25),
+                coloraxis_showscale=False,
+            )
+            if force_light_mode: fig.update_layout(**LIGHT_LAYOUT)
+            fig.update_traces(textposition="outside")
+            wc_chart_config = {"toImageButtonOptions": {"filename": f"{selected_col}_keywords", "scale": 2}}
+            st.plotly_chart(fig, use_container_width=True, config=wc_chart_config, theme=None if force_light_mode else "streamlit")
+
+            # Data table
+            with st.expander("📋 Lihat Tabel Kata"):
+                st.dataframe(top_kw, use_container_width=True, hide_index=True)
+
+                csv_data = top_kw.to_csv(index=False)
+                st.download_button(
+                    "📄 Download Keywords (CSV)",
+                    data=csv_data,
+                    file_name=f"keywords_{selected_col}.csv",
+                    mime="text/csv",
+                )
+        else:
+            st.warning("⚠️ Tidak ada kata yang ditemukan setelah cleaning.")
+
+    elif not generate_btn:
+        st.markdown("")
+        st.markdown("")
+        st.info("👈 Pilih kolom teks dan klik **Generate Wordcloud** untuk memulai analisis.")
 
 # Sidebar
 with st.sidebar:
@@ -2110,249 +2277,14 @@ with st.sidebar:
     if "df" in st.session_state and st.session_state.df is not None:
         st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
-        st.markdown("---")
-        st.markdown("**Kolom Terkonfigurasi:**")
-        for col_name, q_type in configured_cols.items():
-            st.caption(f"• {col_name}: `{q_type}`")
 </file>
 
 <file path="pages/4_visualization.py">
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from utils.pivot_analysis import single_choice_analysis, scale_analysis
-from utils.multi_select_analysis import multi_choice_analysis
-from utils.export_helpers import table_to_png
-
-st.set_page_config(page_title="Visualization", page_icon="📊", layout="wide")
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
-                 "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
-COLOR_SCALES = ["Purples", "Blues", "Greens", "Reds", "Viridis", "Plasma", "Inferno", "Turbo"]
-
-st.markdown("# 📊 Visualization")
-
-if "df" not in st.session_state or st.session_state.df is None:
-    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
-    st.stop()
-
-df = st.session_state.df
-
-# --------------- Settings ---------------
-with st.sidebar:
-    st.markdown("### 🎨 Pengaturan Visualisasi")
-    chart_theme = st.selectbox("Color Scale", COLOR_SCALES, index=0)
-    chart_height = st.slider("Tinggi Chart", 300, 800, 500, step=50)
-    show_values = st.checkbox("Tampilkan Nilai", value=True)
-
-    st.markdown("---")
-    if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
-        st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
-
-
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter", color="#e0e0e0"),
-    margin=dict(t=50, b=50, l=50, r=50),
-    height=chart_height,
-)
-
-# --------------- Column Selection ---------------
-st.markdown("### 📌 Pilih Kolom dan Tipe Chart")
-
-col_select, type_select, chart_select = st.columns(3)
-
-with col_select:
-    selected_col = st.selectbox("Kolom", df.columns.tolist())
-
-with type_select:
-    data_type = st.selectbox(
-        "Tipe Data",
-        ["single_choice", "multiple_choice", "scale"],
-        format_func=lambda x: x.replace("_", " ").title(),
-    )
-
-with chart_select:
-    chart_options = {
-        "single_choice": ["Bar Chart", "Pie Chart", "Donut Chart", "Treemap"],
-        "multiple_choice": ["Horizontal Bar", "Bar Chart", "Treemap"],
-        "scale": ["Bar Chart", "Area Chart", "Line Chart"],
-    }
-    chart_type = st.selectbox("Tipe Chart", chart_options.get(data_type, ["Bar Chart"]))
-
-st.markdown("---")
-
-# --------------- Generate Visualization ---------------
-if selected_col:
-    # Get analysis data based on type
-    if data_type == "single_choice":
-        result = single_choice_analysis(df, selected_col)
-        val_col, count_col = "Value", "Count"
-    elif data_type == "multiple_choice":
-        result = multi_choice_analysis(df, selected_col)
-        val_col, count_col = "Value", "Count"
-    elif data_type == "scale":
-        result = scale_analysis(df, selected_col)
-        val_col, count_col = "Scale", "Count"
-    else:
-        result = None
-
-    if result is not None and not result.empty:
-        st.markdown(f"### 📊 {chart_type} — {selected_col}")
-
-        text_arg = count_col if show_values else None
-
-        if chart_type == "Bar Chart":
-            fig = px.bar(
-                result, x=val_col, y=count_col,
-                color=val_col, color_discrete_sequence=PLOTLY_COLORS,
-                text=text_arg,
-            )
-            if show_values:
-                fig.update_traces(textposition="outside")
-            fig.update_layout(**PLOTLY_LAYOUT, showlegend=False)
-            fig.update_xaxes(type="category")
-
-        elif chart_type == "Horizontal Bar":
-            fig = px.bar(
-                result, x=count_col, y=val_col,
-                orientation="h",
-                color=count_col, color_continuous_scale=chart_theme,
-                text=text_arg,
-            )
-            if show_values:
-                fig.update_traces(textposition="outside")
-            fig.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False,
-                              yaxis=dict(autorange="reversed"))
-
-        elif chart_type == "Pie Chart":
-            fig = px.pie(
-                result, names=val_col, values=count_col,
-                color_discrete_sequence=PLOTLY_COLORS,
-            )
-            fig.update_layout(**PLOTLY_LAYOUT)
-            fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
-
-        elif chart_type == "Donut Chart":
-            fig = px.pie(
-                result, names=val_col, values=count_col,
-                color_discrete_sequence=PLOTLY_COLORS,
-                hole=0.45,
-            )
-            fig.update_layout(**PLOTLY_LAYOUT)
-            fig.update_traces(textinfo="label+percent+value" if show_values else "label+percent")
-
-        elif chart_type == "Treemap":
-            fig = px.treemap(
-                result, path=[val_col], values=count_col,
-                color=count_col, color_continuous_scale=chart_theme,
-            )
-            fig.update_layout(**PLOTLY_LAYOUT, coloraxis_showscale=False)
-
-        elif chart_type == "Area Chart":
-            fig = px.area(
-                result, x=val_col, y=count_col,
-                color_discrete_sequence=PLOTLY_COLORS,
-            )
-            fig.update_layout(**PLOTLY_LAYOUT)
-            fig.update_xaxes(type="category")
-
-        elif chart_type == "Line Chart":
-            fig = px.line(
-                result, x=val_col, y=count_col,
-                markers=True,
-                color_discrete_sequence=PLOTLY_COLORS,
-            )
-            fig.update_layout(**PLOTLY_LAYOUT)
-            fig.update_xaxes(type="category")
-
-        else:
-            fig = None
-
-        if fig:
-            # Custom filename for Plotly's built-in PNG download button
-            chart_config = {
-                "toImageButtonOptions": {
-                    "filename": f"{selected_col}_{chart_type.replace(' ', '_').lower()}",
-                    "width": 1200,
-                    "height": chart_height,
-                    "scale": 2,
-                },
-            }
-            st.plotly_chart(fig, use_container_width=True, config=chart_config)
-
-            # Export options
-            st.markdown("---")
-            st.markdown("### 📥 Ekspor")
-
-            col_exp1, col_exp2, col_exp3 = st.columns(3)
-
-            with col_exp1:
-                csv_data = result.to_csv(index=False)
-                st.download_button(
-                    "📄 Download Data (CSV)",
-                    data=csv_data,
-                    file_name=f"{selected_col}_analysis.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-
-            with col_exp2:
-                html_data = fig.to_html(include_plotlyjs="cdn")
-                st.download_button(
-                    "📊 Download Chart (HTML)",
-                    data=html_data,
-                    file_name=f"{selected_col}_chart.html",
-                    mime="text/html",
-                    use_container_width=True,
-                )
-
-            with col_exp3:
-                try:
-                    table_png = table_to_png(result, title=f"{selected_col} — {data_type.replace('_',' ').title()}")
-                    st.download_button(
-                        "📋 Download Tabel (PNG)",
-                        data=table_png,
-                        file_name=f"{selected_col}_table.png",
-                        mime="image/png",
-                        use_container_width=True,
-                    )
-                except Exception as e:
-                    st.error(f"Table PNG export error: {e}")
-
-        # Data table
-        with st.expander("📋 Lihat Data Tabel"):
-            st.dataframe(result, use_container_width=True, hide_index=True)
-    else:
-        st.warning("⚠️ Tidak ada data untuk ditampilkan.")
 </file>
 
-<file path="requirements.txt">
-streamlit
-pandas
-plotly
-wordcloud
-streamlit-aggrid
-openpyxl
-nltk
-matplotlib
+<file path="pages/3_analysis.py">
+
 </file>
 
 </files>
