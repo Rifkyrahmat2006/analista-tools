@@ -114,7 +114,7 @@ if selected_col:
             )
             if show_values:
                 fig.update_traces(textposition="outside")
-            fig.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), height=chart_height, margin=dict(t=50, b=50, l=50, r=50))
+            fig.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed", title=None), height=chart_height, margin=dict(t=50, b=50))
             if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
 
         elif chart_type == "Pie Chart":

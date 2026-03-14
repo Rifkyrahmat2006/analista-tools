@@ -242,7 +242,7 @@ for col_name, q_type in configured_cols.items():
                 color="Count", color_continuous_scale="Purples",
                 text="Count",
             )
-            fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
+            fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed", title=None), margin=dict(t=40, b=40))
             if force_light_mode: fig_multi.update_layout(**LIGHT_LAYOUT)
             fig_multi.update_traces(textposition="outside")
             multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
