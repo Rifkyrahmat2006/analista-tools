@@ -57,9 +57,14 @@ with col_select:
     selected_col = st.selectbox("Kolom", df.columns.tolist())
 
 with type_select:
+    type_options = ["single_choice", "multiple_choice", "scale"]
+    default_type = st.session_state.get("question_types", {}).get(selected_col)
+    default_idx = type_options.index(default_type) if default_type in type_options else 0
+
     data_type = st.selectbox(
         "Tipe Data",
-        ["single_choice", "multiple_choice", "scale"],
+        type_options,
+        index=default_idx,
         format_func=lambda x: x.replace("_", " ").title(),
     )
 
@@ -77,10 +82,18 @@ st.markdown("---")
 if selected_col:
     # Get analysis data based on type
     if data_type == "single_choice":
-        result = single_choice_analysis(df, selected_col)
+        main_opts = st.session_state.get(f"mainopts_{selected_col}", [])
+        hidden_opts = st.session_state.get(f"hiddenpts_{selected_col}", set())
+        result = single_choice_analysis(df, selected_col, main_options=main_opts)
+        if hasattr(result, "empty") and not result.empty:
+            result = result[~result['Value'].isin(hidden_opts)]
         val_col, count_col = "Value", "Count"
     elif data_type == "multiple_choice":
-        result = multi_choice_analysis(df, selected_col)
+        main_opts = st.session_state.get(f"mainopts_{selected_col}", [])
+        hidden_opts = st.session_state.get(f"hiddenpts_{selected_col}", set())
+        result = multi_choice_analysis(df, selected_col, main_options=main_opts)
+        if hasattr(result, "empty") and not result.empty:
+            result = result[~result['Value'].isin(hidden_opts)]
         val_col, count_col = "Value", "Count"
     elif data_type == "scale":
         result = scale_analysis(df, selected_col)
