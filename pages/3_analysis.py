@@ -159,7 +159,7 @@ else:
                         strike = "~~" if is_hidden else ""
                         st.markdown(f"{strike}◯ {opt} ({count_val}){strike}")
                     with r_hide:
-                        eye_icon = "🙈" if is_hidden else "��️"
+                        eye_icon = "🙈" if is_hidden else "👁️"
                         if st.button(eye_icon, key=f"hide_{col_name}_{opt}"):
                             if is_hidden:
                                 st.session_state[hd_key].remove(opt)
