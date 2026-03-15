@@ -87,13 +87,13 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         pc1, pc2, pc3 = st.columns([1, 2, 1])
         with pc1:
-            if st.button("⬅️ Sebelumnya", disabled=current_page <= 1, use_container_width=True, key="prev_top"):
+            if st.button("Sebelumnya", icon=":material/arrow_back:", disabled=current_page <= 1, use_container_width=True, key="prev_top"):
                 st.session_state.analysis_page_num -= 1
                 st.rerun()
         with pc2:
             st.markdown(f"<p style='text-align: center; margin-top: 10px;'>Halaman <b>{current_page}</b> dari <b>{total_pages}</b> ({len(filtered_cols)} pertanyaan)</p>", unsafe_allow_html=True)
         with pc3:
-            if st.button("Selanjutnya ➡️", disabled=current_page >= total_pages, use_container_width=True, key="next_top"):
+            if st.button("Selanjutnya", icon=":material/arrow_forward:", disabled=current_page >= total_pages, use_container_width=True, key="next_top"):
                 st.session_state.analysis_page_num += 1
                 st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
@@ -159,15 +159,15 @@ else:
                         strike = "~~" if is_hidden else ""
                         st.markdown(f"{strike}◯ {opt} ({count_val}){strike}")
                     with r_hide:
-                        eye_icon = "🙈" if is_hidden else "👁️"
-                        if st.button(eye_icon, key=f"hide_{col_name}_{opt}"):
+                        eye_icon = ":material/visibility_off:" if is_hidden else ":material/visibility:"
+                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="tertiary", key=f"hide_{col_name}_{opt}"):
                             if is_hidden:
                                 st.session_state[hd_key].remove(opt)
                             else:
                                 st.session_state[hd_key].add(opt)
                             st.rerun()
                     with r_del:
-                        if st.button("❌", key=f"del_{col_name}_{opt}"):
+                        if st.button(" ", icon=":material/delete:", help="Hapus Opsi", type="tertiary", key=f"del_{col_name}_{opt}"):
                             st.session_state[ms_key].remove(opt)
                             if opt in st.session_state[hd_key]:
                                 st.session_state[hd_key].remove(opt)
@@ -184,8 +184,8 @@ else:
                         strike = "~~" if is_other_hidden else ""
                         st.markdown(f"{strike}◯ **Other** ({other_count}){strike}")
                     with or_hide:
-                        eye_icon = "🙈" if is_other_hidden else "👁️"
-                        if st.button(eye_icon, key=f"hide_{col_name}_Other"):
+                        eye_icon = ":material/visibility_off:" if is_other_hidden else ":material/visibility:"
+                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="tertiary", key=f"hide_{col_name}_Other"):
                             if is_other_hidden:
                                 st.session_state[hd_key].remove("Other")
                             else:
@@ -206,7 +206,7 @@ else:
                             with orq1:
                                 st.markdown(f"• {oth} ({count_val})")
                             with orq2:
-                                if st.button("➕", key=f"add_oth_{col_name}_{oth}"):
+                                if st.button(" ", icon=":material/add:", help="Pindahkan ke Opsi Utama", type="tertiary", key=f"add_oth_{col_name}_{oth}"):
                                     st.session_state[ms_key].append(oth)
                                     st.rerun()
 
@@ -216,7 +216,7 @@ else:
                 with c_add1:
                     new_opt = st.text_input("Add option", key=f"txt_{col_name}", label_visibility="collapsed", placeholder="Ketik opsi manual yang ingin dipindahkan dari Other...")
                 with c_add2:
-                    if st.button("Add", key=f"btn_add_{col_name}", use_container_width=True):
+                    if st.button("Tambahkan", icon=":material/add_circle:", use_container_width=True, key=f"btn_add_{col_name}"):
                         all_opts = prev_data.get("all", [])
                         if new_opt and new_opt not in current_mains and new_opt in all_opts:
                             st.session_state[ms_key].append(new_opt)
@@ -350,13 +350,13 @@ else:
         st.markdown("---")
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc1:
-            if st.button("⬅️ Sebelumnya", disabled=current_page <= 1, use_container_width=True, key="prev_bot"):
+            if st.button("Sebelumnya", icon=":material/arrow_back:", disabled=current_page <= 1, use_container_width=True, key="prev_bot"):
                 st.session_state.analysis_page_num -= 1
                 st.rerun()
         with bc2:
             st.markdown(f"<p style='text-align: center; margin-top: 10px;'>Halaman <b>{current_page}</b> dari <b>{total_pages}</b></p>", unsafe_allow_html=True)
         with bc3:
-            if st.button("Selanjutnya ➡️", disabled=current_page >= total_pages, use_container_width=True, key="next_bot"):
+            if st.button("Selanjutnya", icon=":material/arrow_forward:", disabled=current_page >= total_pages, use_container_width=True, key="next_bot"):
                 st.session_state.analysis_page_num += 1
                 st.rerun()
 
