@@ -60,6 +60,10 @@ if "detected_types" not in st.session_state or st.session_state.get("_det_id") !
         st.session_state.detected_features[col] = analyze_column_features(df[col])
     st.session_state._det_id = id(df)
 
+# Callback to fix double-render issue on selectbox
+def update_qtype(c_name):
+    st.session_state.question_types[c_name] = st.session_state[f"qtype_{c_name}"]
+
 # Show configuration in a vertical block layout
 search_q = st.text_input("🔍 Cari Pertanyaan...", placeholder="Ketik kata kunci pertanyaan...", key="search_config")
 
@@ -121,10 +125,10 @@ else:
                     options=TYPE_OPTIONS,
                     index=default_idx,
                     key=f"qtype_{col_name}",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    on_change=update_qtype,
+                    args=(col_name,)
                 )
-                # update session state immediately
-                st.session_state.question_types[col_name] = st.session_state[f"qtype_{col_name}"]
 
             st.markdown("<br>", unsafe_allow_html=True)
 
