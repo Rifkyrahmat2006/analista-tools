@@ -43,8 +43,8 @@ if "df" not in st.session_state or st.session_state.df is None:
 df = st.session_state.df
 
 # --------------- Question Type Configuration ---------------
-st.markdown("### ⚙️ Konfigurasi Tipe Pertanyaan")
-st.caption("Tentukan tipe setiap kolom untuk menjalankan analisis yang sesuai. Tipe terdeteksi otomatis — Anda bisa override manual.")
+st.markdown("### 📊 Hasil Analisis")
+st.caption("Konfigurasi tipe setiap kolom untuk menyesuaikan analisis yang dihasilkan. Tipe terdeteksi otomatis — Anda bisa mengubahkan secara manual.")
 
 TYPE_OPTIONS = ["skip", "single_choice", "multiple_choice", "scale", "open_text"]
 
@@ -90,6 +90,7 @@ for col_name in df.columns:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # ----------------- Configuration & Previews -----------------
         if current_val in ["multiple_choice", "single_choice"]:
             if current_val == "multiple_choice":
                 prev_data = get_multiple_choice_preview(df[col_name])
@@ -97,23 +98,41 @@ for col_name in df.columns:
                 prev_data = get_single_choice_preview(df[col_name])
                 
             ms_key = f"mainopts_{col_name}"
-            # Initialize state
+            hd_key = f"hiddenpts_{col_name}"
+            # Initialize states
             if ms_key not in st.session_state:
                 st.session_state[ms_key] = prev_data.get("main_names", []).copy()
+            if hd_key not in st.session_state:
+                st.session_state[hd_key] = set()
                 
             current_mains = st.session_state[ms_key]
+            current_hiddens = st.session_state[hd_key]
             
             # Show current Main Options
             st.caption("Options preview:")
             counts_dict = prev_data.get("counts", {})
             for opt in current_mains.copy():
-                r1, r2 = st.columns([0.95, 0.05])
+                r1, r_hide, r_del = st.columns([0.85, 0.05, 0.05])
                 count_val = counts_dict.get(opt, 0)
+                
+                is_hidden = opt in current_hiddens
+                
                 with r1:
-                    st.markdown(f"◯ {opt} ({count_val})")
-                with r2:
+                    strike = "~~" if is_hidden else ""
+                    st.markdown(f"{strike}◯ {opt} ({count_val}){strike}")
+                with r_hide:
+                    eye_icon = "🙈" if is_hidden else "👁️"
+                    if st.button(eye_icon, key=f"hide_{col_name}_{opt}"):
+                        if is_hidden:
+                            st.session_state[hd_key].remove(opt)
+                        else:
+                            st.session_state[hd_key].add(opt)
+                        st.rerun()
+                with r_del:
                     if st.button("❌", key=f"del_{col_name}_{opt}"):
                         st.session_state[ms_key].remove(opt)
+                        if opt in st.session_state[hd_key]:
+                            st.session_state[hd_key].remove(opt)
                         st.rerun()
 
             # Identify Others
@@ -121,28 +140,43 @@ for col_name in df.columns:
             other_count = sum(counts_dict.get(o, 0) for o in other_opts)
             
             if other_count > 0:
-                st.markdown(f"◯ **Other** ({other_count})")
+                or1, or_hide, or_del = st.columns([0.85, 0.05, 0.05])
+                is_other_hidden = "Other" in current_hiddens
+                with or1:
+                    strike = "~~" if is_other_hidden else ""
+                    st.markdown(f"{strike}◯ **Other** ({other_count}){strike}")
+                with or_hide:
+                    eye_icon = "🙈" if is_other_hidden else "👁️"
+                    if st.button(eye_icon, key=f"hide_{col_name}_Other"):
+                        if is_other_hidden:
+                            st.session_state[hd_key].remove("Other")
+                        else:
+                            st.session_state[hd_key].add("Other")
+                        st.rerun()
+                with or_del:
+                    # Provide an empty column for visual consistency
+                    pass
             
             st.markdown("<br>", unsafe_allow_html=True)
             
             # Interactive 'Other' list
             if other_opts:
-                st.caption("Other responses:")
-                for oth in other_opts:
-                    count_val = counts_dict.get(oth, 0)
-                    or1, or2 = st.columns([0.95, 0.05])
-                    with or1:
-                        st.markdown(f"• {oth} ({count_val})")
-                    with or2:
-                        if st.button("➕", key=f"add_oth_{col_name}_{oth}"):
-                            st.session_state[ms_key].append(oth)
-                            st.rerun()
+                with st.expander("Other responses detailed:"):
+                    for oth in other_opts:
+                        count_val = counts_dict.get(oth, 0)
+                        orq1, orq2 = st.columns([0.95, 0.05])
+                        with orq1:
+                            st.markdown(f"• {oth} ({count_val})")
+                        with orq2:
+                            if st.button("➕", key=f"add_oth_{col_name}_{oth}"):
+                                st.session_state[ms_key].append(oth)
+                                st.rerun()
 
             # Add option manual input
             st.markdown("<br>", unsafe_allow_html=True)
             c_add1, c_add2 = st.columns([0.8, 0.2])
             with c_add1:
-                new_opt = st.text_input("Add option", key=f"txt_{col_name}", label_visibility="collapsed", placeholder="Ketik opsi manual...")
+                new_opt = st.text_input("Add option", key=f"txt_{col_name}", label_visibility="collapsed", placeholder="Ketik opsi manual yang ingin dipindahkan dari Other...")
             with c_add2:
                 if st.button("Add", key=f"btn_add_{col_name}", use_container_width=True):
                     all_opts = prev_data.get("all", [])
@@ -150,34 +184,128 @@ for col_name in df.columns:
                         st.session_state[ms_key].append(new_opt)
                         st.rerun()
                     elif new_opt and new_opt not in all_opts:
-                        st.warning("Opsi tidak ditemukan.")
+                        st.warning("Opsi tidak ditemukan pada data kolom ini.")
             
         elif current_val == "scale":
             st.caption("Distribution Preview:")
             prev_data = df[col_name].value_counts().sort_index()
             for val, count in prev_data.items():
-                st.markdown(f"**{val}** ({count})")
+                st.markdown(f"• **{val}** : {count}")
                 
-        # Handle Open Text (Rules say: "Only display question text and selector. No options preview.")
+        # Handle Open Text
         elif current_val == "open_text":
             pass
             
-        # Column Stats
-        feat = st.session_state.detected_features.get(col_name, {})
-        with st.expander("📊 Column Stats", expanded=False):
-            st.markdown(
-                f"- **Total responses:** {df[col_name].count()}\n"
-                f"- **Unique values:** {int(df[col_name].dropna().nunique())}\n"
-                f"- **Null ratio:** {feat.get('null_ratio', 0)}\n"
-                f"- **Delimiter ratio:** {feat.get('delimiter_ratio', 0)}\n"
-                f"- **Numeric ratio:** {feat.get('numeric_ratio', 0)}\n"
-                f"- **Avg text length:** {feat.get('avg_text_length', 0)}\n"
-                f"- **Avg word count:** {feat.get('avg_word_count', 0)}"
-            )
+        st.markdown("---")
 
-    st.markdown("---")
+        # ----------------- Render Chart Analytics -----------------
+        if current_val == "single_choice":
+            main_opts = st.session_state.get(f"mainopts_{col_name}", [])
+            hidden_opts = st.session_state.get(f"hiddenpts_{col_name}", set())
+            result = single_choice_analysis(df, col_name, main_options=main_opts)
+            
+            # Filter hidden
+            result = result[~result['Value'].isin(hidden_opts)]
 
-st.success("✅ Konfigurasi tersimpan. Silakan buka halaman **Responses Analysis** di menu samping untuk melihat chart dan tabel.")
+            col_table, col_chart = st.columns([1, 2])
+            with col_table:
+                st.markdown("#### 📋 Tabel Frekuensi")
+                st.dataframe(result, use_container_width=True, hide_index=True)
+
+            with col_chart:
+                fig_bar = px.bar(
+                    result, x="Value", y="Count",
+                    color="Value", color_discrete_sequence=PLOTLY_COLORS,
+                    text="Count",
+                )
+                fig_bar.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_bar.update_layout(**LIGHT_LAYOUT)
+                fig_bar.update_traces(textposition="outside")
+                bar_config = {"toImageButtonOptions": {"filename": f"{col_name}_bar_chart", "scale": 2}}
+                st.plotly_chart(fig_bar, use_container_width=True, config=bar_config, theme=None if force_light_mode else "streamlit")
+
+        elif current_val == "scale":
+            result = scale_analysis(df, col_name)
+            stats = scale_statistics(df, col_name)
+
+            col_stats, col_chart = st.columns([1, 2])
+            with col_stats:
+                st.markdown("#### 📋 Distribusi")
+                st.dataframe(result, use_container_width=True, hide_index=True)
+
+                st.markdown("#### 📊 Statistik")
+                stat_cols = st.columns(2)
+                with stat_cols[0]:
+                    st.metric("Mean", stats["mean"])
+                    st.metric("Median", stats["median"])
+                with stat_cols[1]:
+                    st.metric("Std Dev", stats["std"])
+                    st.metric("Responses", stats["count"])
+
+            with col_chart:
+                fig_scale = px.bar(
+                    result, x="Scale", y="Count",
+                    color="Count", color_continuous_scale="Purples",
+                    text="Count",
+                )
+                fig_scale.update_layout(coloraxis_showscale=False, margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_scale.update_layout(**LIGHT_LAYOUT)
+                fig_scale.update_traces(textposition="outside")
+                fig_scale.update_xaxes(type="category")
+                scale_config = {"toImageButtonOptions": {"filename": f"{col_name}_scale_chart", "scale": 2}}
+                st.plotly_chart(fig_scale, use_container_width=True, config=scale_config, theme=None if force_light_mode else "streamlit")
+
+        elif current_val == "multiple_choice":
+            main_opts = st.session_state.get(f"mainopts_{col_name}", [])
+            hidden_opts = st.session_state.get(f"hiddenpts_{col_name}", set())
+            result = multi_choice_analysis(df, col_name, main_options=main_opts)
+
+            # Filter hidden
+            result = result[~result['Value'].isin(hidden_opts)]
+
+            col_table, col_chart = st.columns([1, 2])
+            with col_table:
+                st.markdown("#### 📋 Frekuensi Jawaban")
+                st.dataframe(result, use_container_width=True, hide_index=True)
+
+            with col_chart:
+                fig_multi = px.bar(
+                    result, x="Count", y="Value",
+                    orientation="h",
+                    color="Count", color_continuous_scale="Purples",
+                    text="Count",
+                )
+                fig_multi.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed", title=None), margin=dict(t=40, b=40))
+                if force_light_mode: fig_multi.update_layout(**LIGHT_LAYOUT)
+                fig_multi.update_traces(textposition="outside")
+                multi_config = {"toImageButtonOptions": {"filename": f"{col_name}_multi_chart", "scale": 2}}
+                st.plotly_chart(fig_multi, use_container_width=True, config=multi_config, theme=None if force_light_mode else "streamlit")
+
+        elif current_val == "open_text":
+            analysis = analyze_text_column(df, col_name)
+            top_kw = get_top_keywords(analysis["word_freq"], top_n=15)
+
+            col_stats, col_chart = st.columns([1, 2])
+            with col_stats:
+                st.markdown("#### 📊 Statistik Teks")
+                st.metric("Total Respons", analysis["total_responses"])
+                st.metric("Total Kata", analysis["total_words"])
+                st.metric("Kata Unik", analysis["unique_words"])
+
+            with col_chart:
+                fig_text = px.bar(
+                    top_kw, x="Frequency", y="Keyword",
+                    orientation="h",
+                    color="Frequency", color_continuous_scale="Purples",
+                    text="Frequency",
+                )
+                fig_text.update_layout(coloraxis_showscale=False, yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40, l=40, r=40))
+                if force_light_mode: fig_text.update_layout(**LIGHT_LAYOUT)
+                fig_text.update_traces(textposition="outside")
+                text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
+                st.plotly_chart(fig_text, use_container_width=True, config=text_config, theme=None if force_light_mode else "streamlit")
+
+            st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
 
 # Sidebar
 with st.sidebar:
