@@ -22,7 +22,7 @@ def load_csv(file) -> pd.DataFrame:
         df = pd.read_csv(file)
         return df
     except Exception as e:
-        st.error(f"❌ Error loading CSV: {e}")
+        st.error(f":material/error: Error loading CSV: {e}")
         return None
 
 
@@ -33,7 +33,7 @@ def load_excel(file) -> pd.DataFrame:
         df = pd.read_excel(file, engine="openpyxl")
         return df
     except Exception as e:
-        st.error(f"❌ Error loading Excel: {e}")
+        st.error(f":material/error: Error loading Excel: {e}")
         return None
 
 
@@ -52,7 +52,7 @@ def load_file(uploaded_file) -> pd.DataFrame:
     elif filename.endswith((".xlsx", ".xls")):
         return load_excel(uploaded_file)
     else:
-        st.error("❌ Format file tidak didukung. Gunakan CSV atau Excel (.xlsx/.xls).")
+        st.error(":material/error: Format file tidak didukung. Gunakan CSV atau Excel (.xlsx/.xls).")
         return None
 
 
