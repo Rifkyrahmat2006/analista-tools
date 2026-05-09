@@ -12,9 +12,9 @@ from utils.multi_select_analysis import multi_choice_analysis, multi_choice_comb
 from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
-from utils.theme import inject_theme_css, get_light_plotly_layout
+from utils.theme import inject_theme_css, get_light_plotly_layout, render_sidebar_footer, render_page_footer
 
-st.set_page_config(page_title="Analysis", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Analysis", layout="wide")
 
 inject_theme_css()
 
@@ -24,7 +24,7 @@ PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe
 LIGHT_LAYOUT = get_light_plotly_layout()
 
 with st.sidebar:
-    st.markdown("### 🖨️ Export Settings")
+    st.markdown("### :material/print: Export Settings")
     force_light_mode = st.checkbox(
         "Paksa Chart Terang", 
         help="Aktifkan agar chart Plotly berlatar putih. Sangat berguna sebelum Anda mengunduh chart (logo kamera) agar hasil download siap cetak."
@@ -34,16 +34,16 @@ with st.sidebar:
         st.session_state.question_types = {}
         st.rerun()
 
-st.markdown("# 📈 Analysis")
+st.markdown("# :material/trending_up: Analysis")
 
 if "df" not in st.session_state or st.session_state.df is None:
-    st.warning("⚠️ Belum ada dataset. Silakan upload data terlebih dahulu.")
+    st.warning(":material/warning: Belum ada dataset. Silakan upload data terlebih dahulu.")
     st.stop()
 
 df = st.session_state.df
 
 # --------------- Question Type Configuration ---------------
-st.markdown("### 📊 Hasil Analisis")
+st.markdown("### :material/bar_chart: Hasil Analisis")
 st.caption("Konfigurasi tipe setiap kolom untuk menyesuaikan analisis yang dihasilkan. Tipe terdeteksi otomatis — Anda bisa mengubahkan secara manual.")
 
 TYPE_OPTIONS = ["skip", "single_choice", "multiple_choice", "scale", "open_text"]
@@ -65,7 +65,7 @@ def update_qtype(c_name):
     st.session_state.question_types[c_name] = st.session_state[f"qtype_{c_name}"]
 
 # Show configuration in a vertical block layout
-search_q = st.text_input("🔍 Cari Pertanyaan...", placeholder="Ketik kata kunci pertanyaan...", key="search_config")
+search_q = st.text_input(":material/search: Cari Pertanyaan...", placeholder="Ketik kata kunci pertanyaan...", key="search_config")
 
 # Pre-filter columns based on search
 filtered_cols = [col for col in df.columns if not search_q or search_q.lower() in col.lower()]
@@ -164,14 +164,14 @@ else:
                         st.markdown(f"{strike}◯ {opt} ({count_val}){strike}")
                     with r_hide:
                         eye_icon = ":material/visibility_off:" if is_hidden else ":material/visibility:"
-                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="tertiary", key=f"hide_{col_name}_{opt}"):
+                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="secondary", key=f"hide_{col_name}_{opt}"):
                             if is_hidden:
                                 st.session_state[hd_key].remove(opt)
                             else:
                                 st.session_state[hd_key].add(opt)
                             st.rerun()
                     with r_del:
-                        if st.button(" ", icon=":material/delete:", help="Hapus Opsi", type="tertiary", key=f"del_{col_name}_{opt}"):
+                        if st.button(" ", icon=":material/delete:", help="Hapus Opsi", type="secondary", key=f"del_{col_name}_{opt}"):
                             st.session_state[ms_key].remove(opt)
                             if opt in st.session_state[hd_key]:
                                 st.session_state[hd_key].remove(opt)
@@ -189,7 +189,7 @@ else:
                         st.markdown(f"{strike}◯ **Other** ({other_count}){strike}")
                     with or_hide:
                         eye_icon = ":material/visibility_off:" if is_other_hidden else ":material/visibility:"
-                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="tertiary", key=f"hide_{col_name}_Other"):
+                        if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="secondary", key=f"hide_{col_name}_Other"):
                             if is_other_hidden:
                                 st.session_state[hd_key].remove("Other")
                             else:
@@ -210,7 +210,7 @@ else:
                             with orq1:
                                 st.markdown(f"• {oth} ({count_val})")
                             with orq2:
-                                if st.button(" ", icon=":material/add:", help="Pindahkan ke Opsi Utama", type="tertiary", key=f"add_oth_{col_name}_{oth}"):
+                                if st.button(" ", icon=":material/add:", help="Pindahkan ke Opsi Utama", type="secondary", key=f"add_oth_{col_name}_{oth}"):
                                     st.session_state[ms_key].append(oth)
                                     st.rerun()
 
@@ -251,7 +251,7 @@ else:
 
                 col_table, col_chart = st.columns([1, 2])
                 with col_table:
-                    st.markdown("#### 📋 Tabel Frekuensi")
+                    st.markdown("#### :material/table_chart: Tabel Frekuensi")
                     st.dataframe(result, use_container_width=True, hide_index=True)
 
                 with col_chart:
@@ -272,10 +272,10 @@ else:
 
                 col_stats, col_chart = st.columns([1, 2])
                 with col_stats:
-                    st.markdown("#### 📋 Distribusi")
+                    st.markdown("#### :material/table_chart: Distribusi")
                     st.dataframe(result, use_container_width=True, hide_index=True)
 
-                    st.markdown("#### 📊 Statistik")
+                    st.markdown("#### :material/bar_chart: Statistik")
                     stat_cols = st.columns(2)
                     with stat_cols[0]:
                         st.metric("Mean", stats["mean"])
@@ -307,7 +307,7 @@ else:
 
                 col_table, col_chart = st.columns([1, 2])
                 with col_table:
-                    st.markdown("#### 📋 Frekuensi Jawaban")
+                    st.markdown("#### :material/table_chart: Frekuensi Jawaban")
                     st.dataframe(result, use_container_width=True, hide_index=True)
 
                 with col_chart:
@@ -329,7 +329,7 @@ else:
 
                 col_stats, col_chart = st.columns([1, 2])
                 with col_stats:
-                    st.markdown("#### 📊 Statistik Teks")
+                    st.markdown("#### :material/bar_chart: Statistik Teks")
                     st.metric("Total Respons", analysis["total_responses"])
                     st.metric("Total Kata", analysis["total_words"])
                     st.metric("Kata Unik", analysis["unique_words"])
@@ -347,7 +347,7 @@ else:
                     text_config = {"toImageButtonOptions": {"filename": f"{col_name}_keywords_chart", "scale": 2}}
                     st.plotly_chart(fig_text, use_container_width=True, config=text_config, theme=None if force_light_mode else "streamlit")
 
-                st.caption("💡 Untuk wordcloud, kunjungi halaman **☁️ Wordcloud**")
+                st.caption(":material/lightbulb: Untuk wordcloud lengkap, kunjungi tab **:material/cloud: Wordcloud** di halaman **Visualization**")
 
     # Bottom Pagination Controls (Only if multiple pages exist)
     if total_pages > 1:
@@ -365,16 +365,19 @@ else:
                 st.rerun()
 
 st.markdown("---")
-st.success("✅ Konfigurasi tersimpan.")
+st.success(":material/check_circle: Konfigurasi tersimpan.")
 
 # Sidebar
 with st.sidebar:
     st.markdown("---")
     if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.success(f":material/check_circle: **{st.session_state.get('dataset_name', 'Unknown')}**")
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
         st.markdown("---")
         st.markdown("**Kolom Terkonfigurasi:**")
         configured_cols = {k: v for k, v in st.session_state.question_types.items() if v != "skip"}
         for col_name, q_type in configured_cols.items():
             st.caption(f"• {col_name}: {q_type}")
+
+render_sidebar_footer()
+render_page_footer()

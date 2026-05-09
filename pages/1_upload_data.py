@@ -7,17 +7,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_file, save_dataset, list_saved_datasets, load_saved_dataset
-from utils.theme import inject_theme_css
+from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
 
-st.set_page_config(page_title="Upload Data", page_icon="📤", layout="wide")
+st.set_page_config(page_title="Upload Data", layout="wide")
 
 inject_theme_css()
 
-st.markdown("# 📤 Upload Data")
+st.markdown("# :material/upload: Upload Data")
 st.markdown("Upload dataset survei dari file **CSV** atau **Excel** (.xlsx/.xls)")
 
 # --------------- Upload Section ---------------
-tab_upload, tab_saved = st.tabs(["📁 Upload Baru", "💾 Dataset Tersimpan"])
+tab_upload, tab_saved = st.tabs([":material/create_new_folder: Upload Baru", ":material/save: Dataset Tersimpan"])
 
 with tab_upload:
     uploaded_file = st.file_uploader(
@@ -33,7 +33,7 @@ with tab_upload:
             st.session_state.df = df
             st.session_state.dataset_name = uploaded_file.name
 
-            st.success(f"✅ File **{uploaded_file.name}** berhasil dimuat!")
+            st.success(f":material/check_circle: File **{uploaded_file.name}** berhasil dimuat!")
 
             # Statistics cards
             col1, col2, col3, col4 = st.columns(4)
@@ -71,7 +71,7 @@ with tab_upload:
             st.markdown("")
 
             # Preview
-            st.markdown("### 👀 Preview Dataset")
+            st.markdown("### :material/visibility: Preview Dataset")
 
             col_search, col_rows = st.columns([3, 1])
             with col_search:
@@ -89,7 +89,7 @@ with tab_upload:
                 st.dataframe(df.head(n_rows), use_container_width=True, height=400)
 
             # Column info
-            with st.expander("ℹ️ Informasi Kolom", expanded=False):
+            with st.expander(":material/info: Informasi Kolom", expanded=False):
                 col_info = pd.DataFrame({
                     "Tipe Data": df.dtypes.astype(str),
                     "Non-Null": df.count(),
@@ -101,31 +101,34 @@ with tab_upload:
 
             # Save dataset
             st.markdown("---")
-            st.markdown("### 💾 Simpan Dataset")
+            st.markdown("### :material/save: Simpan Dataset")
             save_name = st.text_input("Nama file untuk disimpan", value=uploaded_file.name)
-            if st.button("💾 Simpan ke Lokal", type="primary"):
+            if st.button(":material/save: Simpan ke Lokal", type="primary"):
                 path = save_dataset(df, save_name)
-                st.success(f"✅ Dataset disimpan di: `{path}`")
+                st.success(f":material/check_circle: Dataset disimpan di: `{path}`")
 
 with tab_saved:
     saved_files = list_saved_datasets()
     if saved_files:
         selected_file = st.selectbox("Pilih dataset tersimpan", saved_files)
-        if st.button("📂 Muat Dataset", type="primary"):
+        if st.button(":material/folder_open: Muat Dataset", type="primary"):
             df = load_saved_dataset(selected_file)
             if df is not None:
                 st.session_state.df = df
                 st.session_state.dataset_name = selected_file
-                st.success(f"✅ Dataset **{selected_file}** dimuat!")
+                st.success(f":material/check_circle: Dataset **{selected_file}** dimuat!")
                 st.dataframe(df.head(50), use_container_width=True, height=400)
     else:
-        st.info("📭 Belum ada dataset tersimpan. Upload data terlebih dahulu.")
+        st.info(":material/inbox: Belum ada dataset tersimpan. Upload data terlebih dahulu.")
 
 # Sidebar status
 with st.sidebar:
     st.markdown("---")
     if "df" in st.session_state and st.session_state.df is not None:
-        st.success(f"✅ **{st.session_state.get('dataset_name', 'Unknown')}**")
+        st.success(f":material/check_circle: **{st.session_state.get('dataset_name', 'Unknown')}**")
         st.caption(f"{st.session_state.df.shape[0]} baris × {st.session_state.df.shape[1]} kolom")
     else:
-        st.info("📤 Belum ada dataset.")
+        st.info(":material/upload: Belum ada dataset.")
+
+render_sidebar_footer()
+render_page_footer()
