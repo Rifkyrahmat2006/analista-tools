@@ -25,50 +25,109 @@ inject_theme_css()
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]
 
-COLOR_SCALES = ["Purples", "Blues", "Greens", "Pinks", "Viridis", "Plasma", "Inferno", "Turbo", "Sunset", "Teal"]
+COLOR_SCALES = [
+    # Original
+    "Purples", "Blues", "Greens", "Pinks", "Viridis", "Plasma", "Inferno", "Turbo", "Sunset", "Teal",
+    "Oranges", "Reds", "Magma", "Cividis", "Sunset Dark", "Ice", "Rainbow", "Deep", "Electric", "Mint",
+    "Ocean", "Darkmint", "Earth", "Yellow-Green-Blue", "Yellow-Orange-Red", "Purple-Blue-Green", "Blue-Red", "Picnic", "Portland", "Blackbody",
+    # Kontras tinggi — terlihat jelas di background putih
+    "Dark Neon", "Sunset Fire", "Cyber Purple", "Tropical", "Bold Navy",
+    "Lava", "Forest Dark", "Midnight Blue", "Deep Teal", "Crimson",
+]
 
-# Key gradient colors per scale for preview swatches
-COLOR_SCALE_PREVIEWS = {
-    "Purples": ["#f2f0f7", "#9e9ac8", "#54278f"],
-    "Blues":   ["#deebf7", "#6baed6", "#08519c"],
-    "Greens":  ["#e5f5e0", "#74c476", "#006d2c"],
-    "Pinks":   ["#fce4ec", "#f48fb1", "#880e4f"],
-    "Viridis": ["#440154", "#31688e", "#35b779", "#fde725"],
-    "Plasma":  ["#0d0887", "#cc4778", "#f89540", "#f0f921"],
-    "Inferno": ["#000004", "#bc3754", "#f98e09", "#fcffa4"],
-    "Turbo":   ["#30123b", "#28bbec", "#a1fc3d", "#fb8022"],
-    "Sunset":  ["#f7f7f7", "#f4a582", "#d6604d", "#4d4d4d"],
-    "Teal":    ["#d0f0f0", "#66c2c2", "#007474"],
+SCALE_EMOJIS = {
+    # Original
+    "Purples":           "⚪ 🟣 ⚫",
+    "Blues":             "⚪ 🔵 ⚫",
+    "Greens":            "⚪ 🟢 ⚫",
+    "Pinks":             "⚪ 🔴 ⚫",
+    "Viridis":           "🟣 🟢 🟡",
+    "Plasma":            "🔵 🟣 🟡",
+    "Inferno":           "⚫ 🔴 🟡",
+    "Turbo":             "🔵 🟢 🔴",
+    "Sunset":            "⚪ 🔴 ⚫",
+    "Teal":              "⚪ 🟢 🔵",
+    "Oranges":           "⚪ 🟠 ⚫",
+    "Reds":              "⚪ 🔴 ⚫",
+    "Magma":             "⚫ 🟣 🟡",
+    "Cividis":           "⚫ 🔵 🟡",
+    "Sunset Dark":       "⚫ 🔴 🟠",
+    "Ice":               "⚪ 🔵 🔵",
+    "Rainbow":           "🔴 🟢 🔵",
+    "Deep":              "⚫ 🔵 🟢",
+    "Electric":          "⚫ 🟠 🟡",
+    "Mint":              "⚪ 🟢 🟢",
+    "Ocean":             "⚫ 🔵 🟢",
+    "Darkmint":          "🟢 🟢 ⚫",
+    "Earth":             "🟤 🟢 ⚪",
+    "Yellow-Green-Blue": "🟡 🟢 🔵",
+    "Yellow-Orange-Red": "🟡 🟠 🔴",
+    "Purple-Blue-Green": "🟣 🔵 🟢",
+    "Blue-Red":          "🔵 🟣 🔴",
+    "Picnic":            "🔵 🔴 🔴",
+    "Portland":          "🔵 🔴 🟡",
+    "Blackbody":         "⚫ 🔴 🟡",
+    # Kontras tinggi
+    "Dark Neon":         "⚫ 🟢 🟡",
+    "Sunset Fire":       "⚫ 🔴 🟠",
+    "Cyber Purple":      "⚫ 🟣 🔵",
+    "Tropical":          "🔵 🟢 🟠",
+    "Bold Navy":         "🔵 🔵 🟣",
+    "Lava":              "⚫ 🔴 🟠",
+    "Forest Dark":       "⚫ 🟢 🟡",
+    "Midnight Blue":     "⚫ 🔵 🟣",
+    "Deep Teal":         "⚫ 🟢 🔵",
+    "Crimson":           "⚫ 🔴 🟣",
 }
 
 # Map display names to Plotly colorscale names
 PLOTLY_SCALE_MAP = {
-    "Purples": "Purples",
-    "Blues":   "Blues",
-    "Greens":  "Greens",
-    "Pinks":   "RdPu",
-    "Viridis": "Viridis",
-    "Plasma":  "Plasma",
-    "Inferno": "Inferno",
-    "Turbo":   "Turbo",
-    "Sunset":  "RdGy",
-    "Teal":    "Teal",
+    # Original
+    "Purples":           "Purples",
+    "Blues":             "Blues",
+    "Greens":            "Greens",
+    "Pinks":             "RdPu",
+    "Viridis":           "Viridis",
+    "Plasma":            "Plasma",
+    "Inferno":           "Inferno",
+    "Turbo":             "Turbo",
+    "Sunset":            "RdGy",
+    "Teal":              "Teal",
+    "Oranges":           "Oranges",
+    "Reds":              "Reds",
+    "Magma":             "Magma",
+    "Cividis":           "Cividis",
+    "Sunset Dark":       "Sunset",
+    "Ice":               "Ice",
+    "Rainbow":           "Rainbow",
+    "Deep":              "deep",
+    "Electric":          "Electric",
+    "Mint":              "Mint",
+    "Ocean":             "ocean",
+    "Darkmint":          "darkmint",
+    "Earth":             "earth",
+    "Yellow-Green-Blue": "YlGnBu",
+    "Yellow-Orange-Red": "YlOrRd",
+    "Purple-Blue-Green": "PuBuGn",
+    "Blue-Red":          "Bluered",
+    "Picnic":            "Picnic",
+    "Portland":          "Portland",
+    "Blackbody":         "Blackbody",
+    # Kontras tinggi (custom hex)
+    "Dark Neon":    [[0, "#0a0a0a"], [0.33, "#00ff88"], [0.66, "#00ccff"], [1, "#ffff00"]],
+    "Sunset Fire":  [[0, "#0d0000"], [0.33, "#8b0000"], [0.66, "#ff4500"], [1, "#ff8c00"]],
+    "Cyber Purple": [[0, "#0a000f"], [0.33, "#4a0080"], [0.66, "#9b30ff"], [1, "#00bfff"]],
+    "Tropical":     [[0, "#003366"], [0.33, "#006699"], [0.66, "#00cc99"], [1, "#ff6600"]],
+    "Bold Navy":    [[0, "#000033"], [0.33, "#003399"], [0.66, "#0066ff"], [1, "#9933ff"]],
+    "Lava":         [[0, "#1a0000"], [0.33, "#cc0000"], [0.66, "#ff6600"], [1, "#ffcc00"]],
+    "Forest Dark":  [[0, "#001a00"], [0.33, "#006600"], [0.66, "#33cc33"], [1, "#99ff00"]],
+    "Midnight Blue": [[0, "#000011"], [0.33, "#000066"], [0.66, "#0033cc"], [1, "#6699ff"]],
+    "Deep Teal":    [[0, "#001111"], [0.33, "#004444"], [0.66, "#008888"], [1, "#00ddcc"]],
+    "Crimson":      [[0, "#0f0005"], [0.33, "#660022"], [0.66, "#cc0044"], [1, "#ff66aa"]],
 }
 
 
-def render_color_preview(scale_name: str):
-    """Render a horizontal gradient swatch for the selected color scale."""
-    colors = COLOR_SCALE_PREVIEWS.get(scale_name, ["#888"])
-    dots = "".join([
-        f'<span style="display:inline-block;width:16px;height:16px;border-radius:50%;'
-        f'background:{c};margin:0 3px;vertical-align:middle;border:1px solid rgba(255,255,255,0.15);"></span>'
-        for c in colors
-    ])
-    st.markdown(
-        f'<div style="padding:4px 2px 8px 2px;">{dots}'
-        f'<span style="font-size:0.75rem;opacity:0.6;margin-left:6px;">{scale_name}</span></div>',
-        unsafe_allow_html=True
-    )
+
 
 
 def df_to_xlsx(df: pd.DataFrame) -> bytes:
@@ -93,9 +152,62 @@ df = st.session_state.df
 with st.sidebar:
     st.markdown("### :material/palette: Pengaturan Visualisasi")
 
-    chart_theme_display = st.selectbox("Color Scale", COLOR_SCALES, index=0, key="vis_colorscale")
+    chart_theme_display = st.selectbox(
+        "Color Scale", 
+        COLOR_SCALES, 
+        index=0, 
+        key="vis_colorscale",
+        format_func=lambda x: f"{x} — {SCALE_EMOJIS.get(x, '')}"
+    )
     chart_theme = PLOTLY_SCALE_MAP.get(chart_theme_display, chart_theme_display)
-    render_color_preview(chart_theme_display)
+
+    # ── Solid color mode for Bar / Horizontal Bar ──
+    use_solid_color = st.checkbox(
+        ":material/palette: Warna Solid (Bar Chart)",
+        value=False,
+        key="use_solid_color",
+        help="Aktifkan untuk mewarnai semua batang dengan satu warna solid."
+    )
+    if use_solid_color:
+        SOLID_COLOR_OPTIONS = {
+            "Biru Tua (#003f8f)":     "#003f8f",
+            "Biru Royal (#4169e1)":   "#4169e1",
+            "Biru Langit (#0ea5e9)":  "#0ea5e9",
+            "Teal (#0d9488)":         "#0d9488",
+            "Hijau Tua (#166534)":    "#166534",
+            "Hijau (#16a34a)":        "#16a34a",
+            "Hijau Muda (#65a30d)":   "#65a30d",
+            "Ungu Tua (#581c87)":     "#581c87",
+            "Ungu (#7c3aed)":         "#7c3aed",
+            "Indigo (#4338ca)":       "#4338ca",
+            "Merah Tua (#991b1b)":    "#991b1b",
+            "Merah (#dc2626)":        "#dc2626",
+            "Oranye (#ea580c)":       "#ea580c",
+            "Amber (#d97706)":        "#d97706",
+            "Kuning (#ca8a04)":       "#ca8a04",
+            "Pink Tua (#9d174d)":     "#9d174d",
+            "Pink (#db2777)":         "#db2777",
+            "Abu Tua (#374151)":      "#374151",
+            "Abu (#6b7280)":          "#6b7280",
+            "Hitam (#111827)":        "#111827",
+            "Kustom":                 "custom",
+        }
+        solid_color_label = st.selectbox(
+            "Pilih Warna",
+            list(SOLID_COLOR_OPTIONS.keys()),
+            key="solid_color_label",
+        )
+        if SOLID_COLOR_OPTIONS[solid_color_label] == "custom":
+            solid_color = st.color_picker("Warna Kustom", value="#4169e1", key="solid_color_custom")
+        else:
+            solid_color = SOLID_COLOR_OPTIONS[solid_color_label]
+        # Preview warna terpilih
+        st.markdown(
+            f'<div style="width:100%;height:18px;border-radius:6px;background:{solid_color};"></div>',
+            unsafe_allow_html=True
+        )
+    else:
+        solid_color = None
 
     chart_height = st.slider("Tinggi Chart", 300, 800, 500, step=50)
 
@@ -138,8 +250,16 @@ with st.sidebar:
             "Atas Tengah":   dict(x=0.5,  y=1.05,  xanchor="center", yanchor="bottom", orientation="h"),
         }
         legend_cfg = LEGEND_CONFIGS[legend_pos]
+
+        # ── Legend label editor ──
+        st.markdown("###### ✏️ Edit Nama Legenda")
+        st.caption("Isi untuk mengganti nama label legenda di chart. Kosongkan = gunakan nama asli.")
+        if "legend_label_overrides" not in st.session_state:
+            st.session_state.legend_label_overrides = {}
     else:
         legend_cfg = {}
+        if "legend_label_overrides" not in st.session_state:
+            st.session_state.legend_label_overrides = {}
 
     st.markdown("##### Judul Chart")
     custom_title = st.text_input("Override Judul (kosongkan = default)", value="", placeholder="Contoh: Distribusi Jawaban")
@@ -177,11 +297,28 @@ with tab_charts:
     with col_select:
         selected_col = st.selectbox("Kolom", df.columns.tolist(), key="vis_col")
 
+    # ── Auto-detect multi-select column ──
+    def detect_multiselect(series: pd.Series, threshold: float = 0.20) -> bool:
+        """Return True if >threshold fraction of non-null values contain a comma."""
+        non_null = series.dropna().astype(str)
+        if len(non_null) == 0:
+            return False
+        frac = non_null.str.contains(",").mean()
+        return frac >= threshold
+
+    is_multiselect_detected = detect_multiselect(df[selected_col])
+
     with type_select:
         type_options = ["single_choice", "multiple_choice", "scale"]
-        default_type = st.session_state.get("question_types", {}).get(selected_col)
-        default_idx  = type_options.index(default_type) if default_type in type_options else 0
-        data_type    = st.selectbox(
+        # Auto-suggest multiple_choice if detected AND user hasn't manually overridden
+        saved_type   = st.session_state.get("question_types", {}).get(selected_col)
+        if saved_type:
+            default_idx = type_options.index(saved_type) if saved_type in type_options else 0
+        elif is_multiselect_detected:
+            default_idx = 1  # multiple_choice
+        else:
+            default_idx = 0
+        data_type = st.selectbox(
             "Tipe Data", type_options, index=default_idx,
             format_func=lambda x: x.replace("_", " ").title(),
             key="vis_dtype",
@@ -194,6 +331,19 @@ with tab_charts:
             "scale":          ["Bar Chart", "Horizontal Bar", "Pie Chart", "Donut Chart", "Area Chart", "Line Chart"],
         }
         chart_type = st.selectbox("Tipe Chart", chart_options.get(data_type, ["Bar Chart"]), key="vis_chart")
+
+    # ── Multi-select detection banner ──
+    if is_multiselect_detected and data_type == "single_choice":
+        st.warning(
+            ":material/warning: **Kolom ini terdeteksi sebagai jawaban pilih-beberapa (multi-select).** "
+            "Jawaban dipisah koma sehingga setiap kombinasi dianggap unik. "
+            "Ubah **Tipe Data → Multiple Choice** agar setiap opsi dihitung secara terpisah."
+        )
+    elif is_multiselect_detected and data_type == "multiple_choice":
+        st.info(
+            ":material/check_circle: **Mode Multi-Select aktif.** "
+            "Jawaban dipisah per opsi — setiap pilihan dihitung secara individual."
+        )
 
     # ── Refresh button ──
     btn_col, _ = st.columns([1, 4])
@@ -251,7 +401,7 @@ with tab_charts:
             # ── Helper: sample N discrete colors from selected colorscale ──
             def get_scale_colors(n):
                 if n < 2:
-                    return [COLOR_SCALE_PREVIEWS.get(chart_theme_display, ["#667eea"])[0]]
+                    return [PLOTLY_COLORS[0]]
                 try:
                     samples = pc.sample_colorscale(
                         chart_theme,
@@ -291,6 +441,33 @@ with tab_charts:
             if show_percent: pie_parts.append("percent")
             pie_textinfo = "+".join(pie_parts) if pie_parts else "none"
 
+            # ── Legend label editor: render inputs in sidebar ──
+            legend_label_overrides = {}
+            if show_legend:
+                with st.sidebar:
+                    orig_labels = [str(v) for v in result[val_col].tolist()]
+                    # Reset widget keys if column changed
+                    if st.session_state.get("_legend_col") != selected_col:
+                        for _old_lbl in st.session_state.get("_legend_orig_labels", []):
+                            _k = f"leg_lbl_{st.session_state.get('_legend_col', '')}_{_old_lbl}"
+                            if _k in st.session_state:
+                                del st.session_state[_k]
+                        st.session_state["_legend_col"] = selected_col
+                    st.session_state["_legend_orig_labels"] = orig_labels
+
+                    for lbl in orig_labels:
+                        key = f"leg_lbl_{selected_col}_{lbl}"
+                        # DO NOT set value= — let Streamlit manage widget state via key
+                        st.text_input(
+                            f"{lbl}",
+                            placeholder=f"Ganti nama '{lbl}'...",
+                            key=key,
+                        )
+                        # Read back what user typed from session_state
+                        typed = st.session_state.get(key, "").strip()
+                        if typed:
+                            legend_label_overrides[lbl] = typed
+
             # ── Legend layout dict ──
             legend_layout = dict(showlegend=show_legend)
             if show_legend and legend_cfg:
@@ -300,11 +477,25 @@ with tab_charts:
             is_bottom_legend = show_legend and legend_cfg.get("y", 0) < 0
             margin_b = 120 if is_bottom_legend else 50
 
+            # ── Apply legend label overrides: rename values in result BEFORE charting ──
+            if legend_label_overrides:
+                result = result.copy()
+                result[val_col] = result[val_col].astype(str).replace(legend_label_overrides)
+
+            # ── Force val_col to string so Plotly treats it as CATEGORICAL ──
+            # Without this, numeric values (e.g. 2025, 2024) cause Plotly to
+            # render a continuous gradient colorbar instead of discrete legend squares.
+            result = result.copy()
+            result[val_col] = result[val_col].astype(str)
+
             # ── Build figure ──
+            fig = None
+
             if chart_type == "Bar Chart":
+                bar_colors = [solid_color] * n_cats if solid_color else disc_colors
                 fig = px.bar(
                     result, x=val_col, y=count_col,
-                    color=val_col, color_discrete_sequence=disc_colors,
+                    color=val_col, color_discrete_sequence=bar_colors,
                     text=text_arg,
                     title=chart_title if custom_title.strip() else None,
                 )
@@ -321,10 +512,11 @@ with tab_charts:
                 fig.update_xaxes(type="category")
 
             elif chart_type == "Horizontal Bar":
+                bar_colors = [solid_color] * n_cats if solid_color else disc_colors
                 fig = px.bar(
                     result, x=count_col, y=val_col,
                     orientation="h",
-                    color=val_col, color_discrete_sequence=disc_colors,
+                    color=val_col, color_discrete_sequence=bar_colors,
                     text=text_arg,
                     title=chart_title if custom_title.strip() else None,
                 )
