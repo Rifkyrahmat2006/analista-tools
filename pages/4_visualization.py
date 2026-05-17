@@ -209,6 +209,16 @@ with st.sidebar:
     else:
         solid_color = None
 
+    # ── Sort order for Bar / Horizontal Bar ──
+    bar_sort = st.radio(
+        ":material/sort: Urutan Bar Chart",
+        ["Default", "asc", "desc"],
+        index=0,
+        horizontal=False,
+        key="bar_sort",
+        help="Hanya berlaku untuk Bar Chart dan Horizontal Bar."
+    )
+
     chart_height = st.slider("Tinggi Chart", 300, 800, 500, step=50)
 
     st.markdown("##### Label pada Chart")
@@ -487,6 +497,14 @@ with tab_charts:
             # render a continuous gradient colorbar instead of discrete legend squares.
             result = result.copy()
             result[val_col] = result[val_col].astype(str)
+
+            # ── Apply sort for Bar / Horizontal Bar ──
+            if chart_type in ("Bar Chart", "Horizontal Bar"):
+                if bar_sort == "asc":
+                    result = result.sort_values(count_col, ascending=False).reset_index(drop=True)
+                elif bar_sort == "desc":
+                    result = result.sort_values(count_col, ascending=True).reset_index(drop=True)
+                # else: Default — keep original order
 
             # ── Build figure ──
             fig = None
