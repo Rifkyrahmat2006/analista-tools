@@ -53,6 +53,46 @@ for col, (label, value) in zip(
 
 st.markdown("")
 
+# --------------- Anomali Redirect ---------------
+null_counts = {col: cnt for col, cnt in summary["null_counts"].items() if cnt > 0}
+if null_counts:
+    with st.expander(f":material/warning: {len(null_counts)} Kolom Berisi Nilai Anomali (Null) — Klik untuk Redirect", expanded=False):
+        st.markdown("Pilih kolom di bawah untuk langsung menuju penanganan nilai null:")
+        # Show each column with its null count as a clickable button
+        n_cols = min(3, len(null_counts))
+        btn_rows = [list(null_counts.items())[i:i+n_cols] for i in range(0, len(null_counts), n_cols)]
+        for row in btn_rows:
+            cols_btns = st.columns(n_cols)
+            for i, (col_name, cnt) in enumerate(row):
+                with cols_btns[i]:
+                    if st.button(
+                        f":material/error: **{col_name}** — {cnt} null",
+                        key=f"anom_redirect_{col_name}",
+                        use_container_width=True,
+                    ):
+                        st.session_state["redirect_null_col"] = col_name
+                        st.rerun()
+
+# Apply redirect: pre-select column in Quick Clean null section
+_redirect_col = st.session_state.pop("redirect_null_col", None)
+
+# --------------- Current Table Preview ---------------
+st.markdown("### :material/table_view: Preview Data Saat Ini")
+
+if _redirect_col:
+    st.info(f":material/info: Menyorot nilai null pada kolom **{_redirect_col}**")
+    
+    def highlight_nulls(s):
+        if s.name == _redirect_col:
+            return ['background-color: rgba(236, 72, 153, 0.2); color: #ec4899; font-weight: bold;' if pd.isna(v) else '' for v in s]
+        return ['' for v in s]
+        
+    st.dataframe(df.style.apply(highlight_nulls), use_container_width=True, height=350)
+else:
+    st.dataframe(df, use_container_width=True, height=350)
+
+st.markdown("---")
+
 # --------------- Cleaning Operations ---------------
 tab_quick, tab_replace, tab_columns, tab_editor = st.tabs([
     ":material/flash_on: Quick Clean", ":material/find_replace: Replace Values", ":material/view_column: Kelola Kolom", ":material/edit: Edit Data"
@@ -97,7 +137,10 @@ with tab_quick:
     st.markdown("#### Hapus Null per Kolom")
     null_cols = [col for col in df.columns if df[col].isnull().sum() > 0]
     if null_cols:
-        selected_null_col = st.selectbox("Pilih kolom", null_cols, key="null_col")
+        # Use redirected column if available
+        null_col_default = _redirect_col if _redirect_col and _redirect_col in null_cols else null_cols[0]
+        null_col_idx = null_cols.index(null_col_default)
+        selected_null_col = st.selectbox("Pilih kolom", null_cols, index=null_col_idx, key="null_col")
         null_action = st.radio(
             "Tindakan",
             ["Hapus baris dengan null", "Isi dengan nilai tertentu"],
@@ -122,6 +165,10 @@ with tab_quick:
     else:
         st.info(":material/check_circle: Tidak ada kolom dengan nilai null.")
 
+    # Show redirect notification
+    if _redirect_col:
+        st.info(f":material/info: Diarahkan ke kolom **{_redirect_col}** yang memiliki nilai null.")
+
 with tab_replace:
     st.markdown("### Ganti Nilai")
 
@@ -142,10 +189,18 @@ with tab_replace:
 
         if st.button(":material/find_replace: Ganti", type="primary", key="exec_replace"):
             if old_val:
+                before_vals = df[rep_col].tolist()
                 df = replace_values(df, rep_col, old_val, new_val)
-                st.session_state.df = df
-                st.success(f":material/check_circle: '{old_val}' → '{new_val}' di kolom '{rep_col}'")
-                st.rerun()
+                after_vals = df[rep_col].tolist()
+                changed = sum(1 for a, b in zip(before_vals, after_vals) if a != b)
+                if changed > 0:
+                    st.session_state.df = df
+                    st.success(f":material/check_circle: {changed} nilai diubah: '{old_val}' → '{new_val}' di kolom '{rep_col}'")
+                    st.rerun()
+                else:
+                    st.warning(f":material/warning: Tidak ada nilai '{old_val}' yang ditemukan di kolom '{rep_col}'. Periksa tipe data atau ejaan nilai.")
+            else:
+                st.warning(":material/warning: Masukkan nilai lama terlebih dahulu.")
 
 with tab_columns:
     st.markdown("### Kelola Kolom")
