@@ -9,8 +9,6 @@ import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 from io import BytesIO
-import base64
-import streamlit.components.v1 as components
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -130,6 +128,8 @@ def df_to_xlsx(df: pd.DataFrame) -> bytes:
     return buf.getvalue()
 
 def render_copy_button(png_bytes: bytes, label: str = "Copy PNG", key: str = "copy"):
+    import base64
+    import streamlit.components.v1 as components
     b64_img = base64.b64encode(png_bytes).decode('utf-8')
     safe_key = key.replace(" ", "_").lower()
     html_code = f"""
@@ -163,18 +163,23 @@ def render_copy_button(png_bytes: bytes, label: str = "Copy PNG", key: str = "co
     async function copyImg_{safe_key}() {{
         const btn = document.getElementById('btn_{safe_key}');
         try {{
-            await window.parent.copyBase64Image('data:image/png;base64,{b64_img}');
+            const res = await fetch('data:image/png;base64,{b64_img}');
+            const blob = await res.blob();
+            const item = new ClipboardItem({{ [blob.type]: blob }});
+            await navigator.clipboard.write([item]);
+            
             btn.style.color = '#10b981';
             btn.style.borderColor = '#10b981';
             btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Copied!';
         }} catch(e) {{
-            btn.innerHTML = '❌ Error';
+            console.error(e);
+            btn.innerHTML = '❌ Gagal (Gunakan Download)';
         }}
         setTimeout(() => {{
             btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> {label}';
             btn.style.color = '#7c8ff7';
             btn.style.borderColor = 'rgba(124, 143, 247, 0.5)';
-        }}, 1500);
+        }}, 2000);
     }}
     </script>
     """
