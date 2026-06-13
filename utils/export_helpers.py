@@ -41,14 +41,18 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     col_widths = [w / sum_widths for w in col_widths]
 
     # Calculate figure size (wider for more text)
-    fig_width = max(8.0, total_len * 0.12)
-    fig_height = max(2.5, 0.45 * n_rows + 1.5)
+    fig_width = max(8.0, total_len * 0.15)
+    # Refined height calculation for "auto height" feel
+    # Each row with scale 1.6 takes roughly 0.35 - 0.4 inches
+    fig_height = 0.4 * (n_rows + 1) # +1 for header row
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     ax.axis("off")
 
     if title:
         fig.suptitle(title, fontsize=15, fontweight="bold", color="#1a1a2e", y=0.98, fontfamily="serif")
+        # Increase height slightly if title exists
+        fig.set_figheight(fig_height + 0.8)
 
     fig.patch.set_facecolor("#ffffff")
 

@@ -5,6 +5,7 @@ Includes sidebar branding, per-page copyright footer, and SVG click-to-toggle da
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import inspect
 import os
 
@@ -124,10 +125,18 @@ def inject_theme_css() -> None:
             display: none !important;
         }}
 
-        /* Hide default Streamlit menu, footer, header */
+        /* Hide default Streamlit menu, footer */
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; }}
-        header {{ visibility: hidden !important; display: none !important; }}
+        
+        /* Ensure Sidebar Toggle remains visible */
+        header {{ background-color: transparent !important; z-index: 999 !important; }}
+        [data-testid="stHeader"] {{ background-color: transparent !important; }}
+        [data-testid="stHeader"] button {{
+            color: {accent} !important;
+            z-index: 10000 !important;
+            visibility: visible !important;
+        }}
 
         /* Kill deploy button */
         [data-testid="stToolbar"] {{ display: none !important; }}
@@ -518,6 +527,11 @@ def inject_theme_css() -> None:
             color: {text_main} !important;
             border-color: {border_col} !important;
         }}
+        /* Garis Tepi Aktif (Border) */
+        [data-baseweb="select"] > div:first-child:focus-within,
+        [data-baseweb="select"] [data-baseweb="select-container"]:focus-within {{
+            border-color: {accent} !important;
+        }}
         [data-baseweb="select"] [data-baseweb="select-container"] span,
         [data-baseweb="select"] [data-baseweb="select-container"] div {{
             color: {text_main} !important;
@@ -532,15 +546,28 @@ def inject_theme_css() -> None:
             border: 1px solid {border_col} !important;
             border-radius: 10px !important;
         }}
+        /* Menjamin teks opsi panjang melipat ke bawah di dalam dropdown bertema gelap */
         [data-baseweb="option"],
-        [role="option"] {{
+        [role="option"],
+        div[data-baseweb="select"] li {{
             background-color: {card_bg} !important;
             color: {text_main} !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            line-height: 1.4 !important;
         }}
         [data-baseweb="option"]:hover,
         [role="option"]:hover,
         [aria-selected="true"][data-baseweb="option"] {{
             background-color: {card_hover} !important;
+        }}
+
+        /* Kolom pencarian baru di dalam select */
+        [data-baseweb="select"] input {{
+            color: {text_main} !important;
+        }}
+        [data-baseweb="select"] input::placeholder {{
+            color: {text_muted} !important;
         }}
 
         /* Expanders */
@@ -637,8 +664,71 @@ def inject_theme_css() -> None:
 
     </style>
     """, unsafe_allow_html=True)
+    
+    # ─── JS Injection for Inner Search Box Placeholder, Select UX Fixes & Global Copy ───
+    components.html("""
+    <script>
+    const observer = new MutationObserver((mutations) => {
+        const doc = window.parent.document;
+        
+        // 1. Ubah Placeholder Inner Search Box
+        const searchInputs = doc.querySelectorAll('input[aria-label="Search"]');
+        searchInputs.forEach(input => {
+            if (input.placeholder !== "Search options...") {
+                input.placeholder = "Search options...";
+            }
+        });
 
+        // 2. Perbaiki Bug Klik Panah (Caret) & Tambahkan Animasi
+        const selects = doc.querySelectorAll('[data-baseweb="select"]');
+        selects.forEach(select => {
+            const input = select.querySelector('[role="combobox"]');
+            const isExpanded = input ? input.getAttribute('aria-expanded') === 'true' : false;
+            
+            // Cari ikon di bagian kanan (ikon clear & caret)
+            const controlContainer = select.querySelector('div:first-child');
+            if (!controlContainer) return;
+            const iconsContainer = controlContainer.lastElementChild;
+            if (!iconsContainer) return;
 
+            const svgs = iconsContainer.querySelectorAll('svg');
+            svgs.forEach(svg => {
+                const wrapper = svg.parentElement;
+                const ariaLabel = (svg.getAttribute('aria-label') || wrapper.getAttribute('aria-label') || "").toLowerCase();
+                if (ariaLabel.includes('clear') || wrapper.getAttribute('role') === 'button') {
+                    return;
+                }
+
+                // Animasi rotasi berdasarkan status expanded
+                svg.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                svg.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                
+                // UX Fix: Buat panah ignore klik
+                svg.style.pointerEvents = 'none';
+                if (wrapper) {
+                    wrapper.style.pointerEvents = 'none';
+                }
+            });
+        });
+    });
+    observer.observe(window.parent.document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+    
+    // Fungsi Global untuk Copy Image ke Clipboard
+    window.parent.copyBase64Image = async function(base64Data) {
+        try {
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+            await window.parent.navigator.clipboard.write([
+                new window.parent.ClipboardItem({ 'image/png': blob })
+            ]);
+            return true;
+        } catch (err) {
+            console.error("Clipboard copy failed:", err);
+            throw err;
+        }
+    };
+    </script>
+    """, height=0, width=0)
 
 
 def render_sidebar_footer():

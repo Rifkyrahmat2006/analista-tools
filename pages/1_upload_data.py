@@ -78,7 +78,7 @@ with tab_upload:
                 search_col = st.multiselect(
                     "Pilih kolom untuk ditampilkan",
                     options=df.columns.tolist(),
-                    default=df.columns.tolist(),
+                    default=df.columns.tolist()
                 )
             with col_rows:
                 n_rows = st.number_input("Jumlah baris", min_value=5, max_value=len(df), value=min(50, len(df)))

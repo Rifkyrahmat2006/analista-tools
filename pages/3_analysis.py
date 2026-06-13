@@ -161,7 +161,7 @@ else:
                     
                     with r1:
                         strike = "~~" if is_hidden else ""
-                        st.markdown(f"{strike}◯ {opt} ({count_val}){strike}")
+                        st.markdown(f"{strike}● {opt} ({count_val}){strike}")
                     with r_hide:
                         eye_icon = ":material/visibility_off:" if is_hidden else ":material/visibility:"
                         if st.button(" ", icon=eye_icon, help="Sembunyikan Opsi", type="secondary", key=f"hide_{col_name}_{opt}"):
