@@ -1,8 +1,13 @@
 streamlit
 pandas
 plotly
+
 wordcloud
 streamlit-aggrid
 openpyxl
 nltk
 matplotlib
+Sastrawi
+thefuzz
+python-Levenshtein
+scikit-learn

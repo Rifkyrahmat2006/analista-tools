@@ -76,6 +76,17 @@ SCALE_EMOJIS = {
     "Crimson":           "⚫ 🔴 🟣",
 }
 
+WC_SCALE_EMOJIS = {
+    "Set2": "🟢 🟠 🔵",
+    "Set3": "🟢 🟡 🟣",
+    "Pastel1": "🔴 🔵 🟢",
+    "Dark2": "🟢 🟠 🟣",
+    "Accent": "🟢 🟣 🟠",
+    "tab10": "🔵 🟠 🟢",
+    "viridis": "🟣 🟢 🟡",
+    "plasma": "🔵 🟣 🟡",
+}
+
 # Map display names to Plotly colorscale names
 PLOTLY_SCALE_MAP = {
     "Purples":           "Purples",
@@ -232,7 +243,10 @@ with st.sidebar:
     solid_color = st.color_picker("Pilih Warna", value="#4169e1") if use_solid_color else None
 
     bar_sort = st.radio(":material/sort: Urutan Bar", ["Default", "asc", "desc"], index=0)
-    chart_height = st.slider("Tinggi Chart (px)", 300, 1000, 500, step=50)
+    st.markdown("##### Dimensi Visual")
+    chart_width = st.slider("Lebar Chart (0 = Auto Layar)", 0, 2000, 0, step=50)
+    chart_height = st.slider("Tinggi Chart (px)", 300, 1500, 500, step=50)
+    table_height = st.slider("Tinggi Tabel (px)", 200, 1500, 400, step=50)
 
     st.markdown("##### Label")
     lbl_c1, lbl_c2, lbl_c3 = st.columns(3)
@@ -374,15 +388,20 @@ with tab_charts:
             if fig:
                 fig.update_traces(textposition=text_position, textfont=dict(size=label_size))
                 fig.update_layout(height=chart_height, margin=_margin, showlegend=show_legend)
+                if chart_width > 0: fig.update_layout(width=chart_width)
                 if show_legend: fig.update_layout(legend=legend_cfg)
                 if force_light_mode: fig.update_layout(**EXPORT_LAYOUT)
-                st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False}, theme=None if force_light_mode else "streamlit")
+                use_container = chart_width == 0
+                st.plotly_chart(fig, use_container_width=use_container, config={"displaylogo": False}, theme=None if force_light_mode else "streamlit")
 
                 try:
                     fig_exp = go.Figure(fig)
                     fig_exp.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#1a1a2e"), width=1400)
                     png = fig_exp.to_image(format="png", scale=2)
                     render_copy_button(png, "Copy Chart PNG", key="copy_chart")
+                    with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
+                        st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
+                        st.image(png)
                 except: pass
 
                 # ── Tabel Preview ──
@@ -390,11 +409,14 @@ with tab_charts:
                 with st.container(border=True):
                     st.markdown("#### :material/table_chart: Data Table Preview")
                     display_result = result.drop(columns=["_text"], errors="ignore")
-                    st.dataframe(display_result, use_container_width=True, hide_index=True)
+                    st.dataframe(display_result, use_container_width=True, hide_index=True, height=table_height)
                     
                     try:
                         table_png = table_to_png(display_result, title="")
                         render_copy_button(table_png, "Copy Table PNG", key="copy_table")
+                        with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
+                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
+                            st.image(table_png)
                     except: pass
 
                 # ── Export Section ──
@@ -426,9 +448,11 @@ with tab_wordcloud:
             st.markdown("---")
             max_words = st.slider("Jumlah Kata Maksimum", 20, 200, 100, step=10, key="wc_maxwords")
             top_n     = st.slider("Top Keywords", 5, 50, 20, key="wc_topn")
-            colormap = st.selectbox(":material/palette: Skema Warna", ["Set2", "Set3", "Pastel1", "Dark2", "Accent", "tab10", "viridis", "plasma"], key="wc_colormap")
+            colormap = st.selectbox(":material/palette: Skema Warna Wordcloud", ["Set2", "Set3", "Pastel1", "Dark2", "Accent", "tab10", "viridis", "plasma"], key="wc_colormap", format_func=lambda x: f"{WC_SCALE_EMOJIS.get(x, '●')} {x}")
+            kw_colorscale = st.selectbox(":material/palette: Skema Warna Top Keyword", COLOR_SCALES, index=0, key="wc_kw_colorscale", format_func=lambda x: f"{SCALE_EMOJIS.get(x, '●')} {x}")
             bg_color = st.color_picker("Background Color", value="#FFFFFF", key="wc_bgcolor")
             st.markdown("---")
+            use_stemming = st.checkbox("Gunakan Stemming (Sastrawi)", value=False, help="Mengubah kata berimbuhan menjadi kata dasar (misal: 'mengajar' -> 'ajar'). Dapat memperlambat proses pada data besar.")
             extra_stopwords_input = st.text_area(":material/block: Stopwords Tambahan", placeholder="dll, dsb, yg, tdk", key="wc_stopwords")
             generate_btn = st.button(":material/rocket_launch: Generate Wordcloud", type="primary", use_container_width=True)
 
@@ -436,7 +460,7 @@ with tab_wordcloud:
             if generate_btn and selected_wc_col:
                 with st.spinner("Menganalisis teks..."):
                     extra_sw = {w.strip().lower() for w in extra_stopwords_input.split(",") if w.strip()}
-                    analysis  = analyze_text_column(df, selected_wc_col, extra_stopwords=extra_sw)
+                    analysis  = analyze_text_column(df, selected_wc_col, extra_stopwords=extra_sw, use_stemming=use_stemming)
                     word_freq = analysis["word_freq"]
                     top_kw    = get_top_keywords(word_freq, top_n=top_n)
 
@@ -472,9 +496,14 @@ with tab_wordcloud:
                             )
                         with c_dl2:
                             render_copy_button(img_bytes, "Copy Wordcloud PNG", key="copy_wc")
+                        
+                        with st.expander(":material/image: Tampilkan Wordcloud (Untuk Copy Manual)"):
+                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
+                            st.image(img_bytes)
 
                     st.markdown("### :material/key: Top Keywords")
-                    fig_kw = px.bar(top_kw, x="Frequency", y="Keyword", orientation="h", color="Frequency", color_continuous_scale="Purples", text="Frequency")
+                    kw_theme = PLOTLY_SCALE_MAP.get(kw_colorscale, kw_colorscale)
+                    fig_kw = px.bar(top_kw, x="Frequency", y="Keyword", orientation="h", color="Frequency", color_continuous_scale=kw_theme, text="Frequency")
                     fig_kw.update_layout(yaxis=dict(autorange="reversed"), margin=dict(t=20, b=20), height=max(300, top_n * 25), coloraxis_showscale=False)
                     if force_light_mode: fig_kw.update_layout(**EXPORT_LAYOUT)
                     st.plotly_chart(fig_kw, use_container_width=True, theme=None if force_light_mode else "streamlit")
@@ -484,6 +513,9 @@ with tab_wordcloud:
                         fig_kw_exp.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#1a1a2e"), width=1400)
                         kw_png = fig_kw_exp.to_image(format="png", scale=2)
                         render_copy_button(kw_png, "Copy Chart PNG", key="copy_kw_chart")
+                        with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
+                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
+                            st.image(kw_png)
                     except: pass
 
                     with st.expander(":material/table_chart: Lihat Tabel Kata"):

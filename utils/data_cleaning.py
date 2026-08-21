@@ -25,14 +25,39 @@ def lowercase_normalize(df: pd.DataFrame, columns: list = None) -> pd.DataFrame:
     return df_clean
 
 
+def detect_hidden_nulls(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Detect disguised missing values (e.g., '-', 'N/A', '', 'null', 'na')
+    and convert them to actual pd.NA/np.nan.
+    """
+    import numpy as np
+    df_clean = df.copy()
+    
+    # Common hidden null string representations
+    hidden_nulls = ["-", "n/a", "na", "null", "none", "tidak ada", ".", "kosong", ""]
+    
+    for col in df_clean.select_dtypes(include=["object"]).columns:
+        # Strip and lower to compare
+        is_hidden_null = df_clean[col].astype(str).str.strip().str.lower().isin(hidden_nulls)
+        # Also replace empty whitespace strings or just empty strings
+        is_whitespace = df_clean[col].astype(str).str.strip() == ""
+        
+        mask = is_hidden_null | is_whitespace
+        df_clean.loc[mask, col] = np.nan
+        
+    return df_clean
+
+
 def remove_null_rows(df: pd.DataFrame, subset: list = None) -> pd.DataFrame:
     """Remove rows with null values."""
     return df.dropna(subset=subset).reset_index(drop=True)
 
 
-def remove_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove duplicate rows."""
-    return df.drop_duplicates().reset_index(drop=True)
+def remove_duplicate_rows(df: pd.DataFrame, subset: list = None, keep: str = "first") -> pd.DataFrame:
+    """Remove duplicate rows. Can use a subset of columns and specify which to keep."""
+    if subset is not None and len(subset) == 0:
+        subset = None
+    return df.drop_duplicates(subset=subset, keep=keep).reset_index(drop=True)
 
 
 def replace_values(df: pd.DataFrame, column: str, old_value: str, new_value: str) -> pd.DataFrame:

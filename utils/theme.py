@@ -8,6 +8,35 @@ import streamlit as st
 import streamlit.components.v1 as components
 import inspect
 import os
+import pandas as pd
+from pathlib import Path
+
+def restore_session_state():
+    """Restore the active dataset from temporary file if session is empty."""
+    if "df" not in st.session_state or st.session_state.df is None:
+        try:
+            cache_dir = Path(__file__).parent.parent / "data" / ".cache"
+            pkl_path = cache_dir / "active_df.pkl"
+            txt_path = cache_dir / "active_name.txt"
+            if pkl_path.exists():
+                st.session_state.df = pd.read_pickle(pkl_path)
+                if txt_path.exists():
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        st.session_state.dataset_name = f.read().strip()
+        except Exception:
+            pass
+
+def persist_session_state():
+    """Save the active dataset to a temporary file to survive hard refreshes."""
+    if "df" in st.session_state and st.session_state.df is not None:
+        try:
+            cache_dir = Path(__file__).parent.parent / "data" / ".cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            st.session_state.df.to_pickle(cache_dir / "active_df.pkl")
+            with open(cache_dir / "active_name.txt", "w", encoding="utf-8") as f:
+                f.write(st.session_state.get("dataset_name", "Unknown"))
+        except Exception:
+            pass
 
 
 def get_light_plotly_layout() -> dict:
@@ -27,6 +56,7 @@ def _toggle_dark_mode():
 
 def inject_theme_css() -> None:
     """Inject global CSS: typography, sidebar brand, menu icons, footer."""
+    restore_session_state()
 
     # Dark / Light mode toggle stored in session state
     if "dark_mode" not in st.session_state:
@@ -130,12 +160,17 @@ def inject_theme_css() -> None:
         footer {{ visibility: hidden !important; display: none !important; }}
         
         /* Ensure Sidebar Toggle remains visible */
-        header {{ background-color: transparent !important; z-index: 999 !important; }}
-        [data-testid="stHeader"] {{ background-color: transparent !important; }}
+        header {{ background-color: transparent !important; z-index: 999 !important; pointer-events: none !important; }}
+        [data-testid="stHeader"] {{ background-color: transparent !important; pointer-events: none !important; }}
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapseButton"],
+        header button,
         [data-testid="stHeader"] button {{
             color: {accent} !important;
-            z-index: 10000 !important;
+            z-index: 100000 !important;
             visibility: visible !important;
+            pointer-events: auto !important;
+            display: flex !important;
         }}
 
         /* Kill deploy button */
@@ -626,6 +661,21 @@ def inject_theme_css() -> None:
         [data-testid="stDataFrame"] {{
             border-radius: 10px !important;
         }}
+        [data-testid="stDataFrame"] th,
+        [data-testid="stTable"] th,
+        .stDataFrame table th {{
+            background-color: {sidebar_bg} !important;
+            color: {text_main} !important;
+            font-weight: 700 !important;
+            border-bottom: 2px solid {accent} !important;
+        }}
+        [data-testid="stDataFrame"] td,
+        [data-testid="stTable"] td,
+        .stDataFrame table td {{
+            background-color: {card_bg} !important;
+            color: {text_main} !important;
+            border-bottom: 1px solid {divider} !important;
+        }}
         /* AG-Grid */
         .ag-root-wrapper, .ag-header, .ag-header-row,
         .ag-cell, .ag-row {{
@@ -746,6 +796,7 @@ def render_sidebar_footer():
 
 def render_page_footer():
     """Inject copyright footer at the bottom of each main page."""
+    persist_session_state()
     st.markdown(
         """
         <div class="page-copyright-footer">

@@ -19,6 +19,61 @@ def split_and_explode(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd
     return exploded
 
 
+def extract_lainnya(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.DataFrame:
+    """
+    Extracts 'Lainnya: [text]' or 'Other: [text]' from a multiselect column into a new column.
+    The original column will have the text replaced with just 'Lainnya'.
+    Returns a new DataFrame with the added column.
+    """
+    df_clean = df.copy()
+    if column not in df_clean.columns:
+        return df_clean
+        
+    lainnya_col_name = f"{column}_lainnya_text"
+    
+    # We will use regex to find 'Lainnya: ' or 'Other: ' followed by any text,
+    # capture that text, and replace the whole thing in the original string with 'Lainnya'
+    
+    import re
+    
+    def process_row(val):
+        if not isinstance(val, str):
+            return val, None
+            
+        items = [item.strip() for item in val.split(delimiter) if item.strip()]
+        new_items = []
+        lainnya_texts = []
+        
+        for item in items:
+            # Match "Lainnya: something" or "Other: something" (case insensitive)
+            match = re.match(r"^(?i)(lainnya|other)\s*:\s*(.*)$", item)
+            if match:
+                new_items.append("Lainnya")
+                lainnya_text = match.group(2).strip()
+                if lainnya_text:
+                    lainnya_texts.append(lainnya_text)
+            else:
+                new_items.append(item)
+                
+        new_val = f"{delimiter} ".join(new_items)
+        lainnya_val = " | ".join(lainnya_texts) if lainnya_texts else None
+        
+        return new_val, lainnya_val
+
+    # Apply to series
+    results = df_clean[column].apply(process_row)
+    df_clean[column] = results.apply(lambda x: x[0])
+    
+    # Only add the new column if there were any 'Lainnya' texts found
+    lainnya_series = results.apply(lambda x: x[1])
+    if lainnya_series.notna().any():
+        # Insert right after the original column
+        col_idx = df_clean.columns.get_loc(column) + 1
+        df_clean.insert(col_idx, lainnya_col_name, lainnya_series)
+        
+    return df_clean
+
+
 def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",", main_options: list = None) -> pd.DataFrame:
     """
     Analyze a multiple choice column.

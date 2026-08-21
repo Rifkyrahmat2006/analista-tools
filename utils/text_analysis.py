@@ -14,6 +14,18 @@ try:
 except ImportError:
     WordCloud = None
 
+try:
+    from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+    from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+    _stemmer_factory = StemmerFactory()
+    _stemmer = _stemmer_factory.create_stemmer()
+    
+    _stopword_factory = StopWordRemoverFactory()
+    SASTRAWI_STOPWORDS = set(_stopword_factory.get_stop_words())
+except ImportError:
+    _stemmer = None
+    SASTRAWI_STOPWORDS = set()
+
 # Indonesian stopwords (common words to filter out)
 INDONESIAN_STOPWORDS = {
     "yang", "dan", "di", "ke", "dari", "untuk", "dengan", "pada", "adalah",
@@ -37,17 +49,32 @@ INDONESIAN_STOPWORDS = {
     "because", "but", "and", "or", "if", "while", "about", "it", "its",
     "i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
     "she", "her", "they", "them", "their", "this", "that", "these", "those",
+    "she", "her", "they", "them", "their", "this", "that", "these", "those",
+    # Non-substantive / Noise
+    "-", ".", "tidak ada", "gatau", "ga tau", "kosong", "tdk ada", "na", "n/a", 
+    "tidak tahu", "belum ada", "strip", "nol", "none", "nothing"
 }
 
 
-def clean_text(text: str) -> str:
+def clean_text(text: str, use_stemming: bool = False) -> str:
     """Clean a single text string."""
     if not isinstance(text, str):
         return ""
     text = text.lower()
+    
+    # Remove some common non-substantive exact phrases before they get tokenized
+    noise_phrases = ["tidak ada", "tdk ada", "ga tau", "gatau", "tidak tahu", "belum ada"]
+    for phrase in noise_phrases:
+        if text.strip() == phrase:
+            return ""
+
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\d+", "", text)
     text = re.sub(r"\s+", " ", text).strip()
+    
+    if use_stemming and _stemmer:
+        text = _stemmer.stem(text)
+        
     return text
 
 
@@ -59,12 +86,13 @@ def tokenize(text: str) -> list:
 def remove_stopwords(words: list, extra_stopwords: set = None) -> list:
     """Remove stopwords from a list of words."""
     stopwords = INDONESIAN_STOPWORDS.copy()
+    stopwords.update(SASTRAWI_STOPWORDS)
     if extra_stopwords:
         stopwords.update(extra_stopwords)
     return [w for w in words if w not in stopwords and len(w) > 1]
 
 
-def analyze_text_column(df: pd.DataFrame, column: str, extra_stopwords: set = None) -> dict:
+def analyze_text_column(df: pd.DataFrame, column: str, extra_stopwords: set = None, use_stemming: bool = False) -> dict:
     """
     Full text analysis pipeline for an open text column.
     Returns word frequencies and total stats.
@@ -73,7 +101,7 @@ def analyze_text_column(df: pd.DataFrame, column: str, extra_stopwords: set = No
 
     all_words = []
     for text in texts:
-        cleaned = clean_text(text)
+        cleaned = clean_text(text, use_stemming=use_stemming)
         words = tokenize(cleaned)
         words = remove_stopwords(words, extra_stopwords)
         all_words.extend(words)
