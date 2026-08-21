@@ -11,3 +11,4 @@ Sastrawi
 thefuzz
 python-Levenshtein
 scikit-learn
+scipy

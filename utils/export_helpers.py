@@ -1,6 +1,6 @@
 """
 Export Utility
-Helpers for exporting tables as PNG for download.
+Helpers for exporting tables as PNG for download and open-ended analysis to XLSX.
 Always renders in LIGHT theme for print-readiness.
 """
 
@@ -90,5 +90,95 @@ def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes
     fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def export_oe_analysis(
+    preprocessed_df,
+    candidate_groups: dict,
+    final_mapping: dict,
+    theme_summary_df,
+    audit_log_df,
+    analysis_run_info: dict,
+) -> bytes:
+    """
+    Export hasil analisis pertanyaan terbuka yang sudah difinalisasi ke multi-sheet XLSX.
+
+    Sheets yang dihasilkan:
+        1. responses        — pemetaan response → tema final
+        2. candidate_groups — ringkasan kandidat kelompok
+        3. theme_summary    — frekuensi dan persentase tema
+        4. analysis_config  — parameter analisis run
+        5. audit_log        — riwayat semua perubahan analis
+
+    PENTING: Hanya memanfaatkan final_mapping (sumber kebenaran tervalidasi),
+    BUKAN cluster labels awal.
+    """
+    buf = io.BytesIO()
+
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+
+        # --- Sheet 1: responses ---
+        if preprocessed_df is not None and not preprocessed_df.empty:
+            resp_rows = []
+            for _, row in preprocessed_df.iterrows():
+                resp_id = row["response_id"]
+                theme_val = final_mapping.get(resp_id, "Unclassified")
+                if isinstance(theme_val, list):
+                    theme_val = ", ".join(theme_val)
+                    
+                resp_rows.append({
+                    "response_id": resp_id,
+                    "original_response": row.get("original_text", ""),
+                    "cleaned_response": row.get("cleaned_text", ""),
+                    "validation_status": row.get("validation_status", ""),
+                    "final_theme": theme_val,
+                })
+            pd.DataFrame(resp_rows).to_excel(writer, index=False, sheet_name="responses")
+        else:
+            pd.DataFrame(columns=["response_id", "original_response", "cleaned_response",
+                                   "validation_status", "final_theme"]).to_excel(
+                writer, index=False, sheet_name="responses"
+            )
+
+        # --- Sheet 2: candidate_groups ---
+        cg_rows = []
+        for group_id, group in candidate_groups.items():
+            cg_rows.append({
+                "group_id": group_id,
+                "candidate_label": group.candidate_label,
+                "final_theme_name": group.final_theme_name,
+                "size": group.size,
+                "status": group.status,
+                "is_other": group.is_other,
+                "top_keywords": ", ".join(group.top_keywords[:8]),
+                "top_phrases": ", ".join(group.top_phrases[:5]),
+                "silhouette_score": round(group.silhouette_score, 4),
+            })
+        pd.DataFrame(cg_rows).to_excel(writer, index=False, sheet_name="candidate_groups")
+
+        # --- Sheet 3: theme_summary ---
+        if theme_summary_df is not None and not theme_summary_df.empty:
+            theme_summary_df.to_excel(writer, index=False, sheet_name="theme_summary")
+        else:
+            pd.DataFrame(columns=["Tema", "Jumlah", "Persentase"]).to_excel(
+                writer, index=False, sheet_name="theme_summary"
+            )
+
+        # --- Sheet 4: analysis_config ---
+        if analysis_run_info:
+            config_rows = [{"parameter": k, "value": str(v)} for k, v in analysis_run_info.items()]
+            pd.DataFrame(config_rows).to_excel(writer, index=False, sheet_name="analysis_config")
+
+        # --- Sheet 5: audit_log ---
+        if audit_log_df is not None and not audit_log_df.empty:
+            audit_log_df.to_excel(writer, index=False, sheet_name="audit_log")
+        else:
+            pd.DataFrame(columns=["timestamp", "action", "entity_type", "entity_id",
+                                   "old_value", "new_value", "user"]).to_excel(
+                writer, index=False, sheet_name="audit_log"
+            )
+
     buf.seek(0)
     return buf.getvalue()
