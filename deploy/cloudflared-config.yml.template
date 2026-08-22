@@ -1,0 +1,10 @@
+# Cloudflare Tunnel config untuk amertools.rifkyprakoso.my.id -> Analista Tools (Docker, localhost:8501)
+# Dipakai setelah tunnel dibuat via API (lihat scripts/setup_cloudflare_tunnel.sh)
+
+tunnel: <TUNNEL_ID_DIISI_OTOMATIS>
+credentials-file: /etc/cloudflared/<TUNNEL_ID_DIISI_OTOMATIS>.json
+
+ingress:
+  - hostname: amertools.rifkyprakoso.my.id
+    service: http://127.0.0.1:8501
+  - service: http_status:404

@@ -15,6 +15,22 @@ services:
     environment:
       - TZ=Asia/Jakarta
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: analista-tools-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    depends_on:
+      - analista-tools
+    # PENTING: network_mode "service:X" mengikat ke NETWORK NAMESPACE
+    # container X saat ini. Kalau analista-tools di-recreate (mis. rebuild
+    # image), namespace lama hilang dan cloudflared kehilangan koneksi
+    # ("network is unreachable"). Setelah rebuild analista-tools, WAJIB
+    # jalankan juga: docker compose up -d --force-recreate cloudflared
+    network_mode: "service:analista-tools"
+
 volumes:
   analista_data:
     driver: local

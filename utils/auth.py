@@ -54,10 +54,22 @@ def render_login_form() -> None:
     """Tampilkan form login full-page. Panggil lalu st.stop() kalau belum login."""
     init_db()
 
+    # Sembunyikan total sidebar (termasuk daftar navigasi halaman) selama
+    # user belum login — jangan bocorkan struktur menu aplikasi sebelum auth.
+    st.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"] { display: none !important; }
+            [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         """
         <div style="text-align:center; padding: 2rem 0 1rem 0;">
-            <h2>:material/lock: Login — Analista Tools</h2>
+            <h2>🔒 Login — Analista Tools</h2>
             <p style="color: #888;">Masuk untuk mengakses dataset dan fitur analisis.</p>
         </div>
         """,
@@ -69,7 +81,7 @@ def render_login_form() -> None:
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button(":material/login: Masuk", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Masuk", use_container_width=True, type="primary", icon=":material/login:")
 
             if submitted:
                 if not username or not password:
