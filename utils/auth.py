@@ -26,11 +26,14 @@ SESSION_KEYS = ["auth_user", "auth_role", "auth_username", "auth_full_name"]
 COOKIE_NAME = "analista_session_token"
 
 
-@st.cache_resource
 def _get_cookie_controller() -> CookieController:
-    # cache_resource: satu instance controller per proses server, dipakai
-    # ulang lintas rerun (bukan dibuat baru tiap kali fungsi dipanggil).
-    return CookieController()
+    # PENTING: CookieController TIDAK boleh dibungkus @st.cache_resource —
+    # secara internal dia memanggil custom Streamlit component (mirip
+    # widget), dan cache_resource/cache_data melarang widget command di
+    # dalamnya (CachedWidgetWarning -> exception di Streamlit versi baru).
+    # Component call itu murah & idempotent (dikenali lewat `key`), jadi
+    # aman dibuat ulang tiap rerun — tidak perlu di-cache sama sekali.
+    return CookieController(key="analista_cookie_controller")
 
 
 def _restore_session_from_cookie() -> bool:
