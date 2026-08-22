@@ -322,7 +322,9 @@ with tab_charts:
             result = single_choice_analysis(df, selected_col)
             val_col, count_col = "Value", "Count"
         elif data_type == "multiple_choice":
-            result = multi_choice_analysis(df, selected_col)
+            # Berikan opsi delimiter karena opsi jawaban mungkin mengandung koma
+            mc_delimiter = st.text_input("Karakter Pemisah (Delimiter)", value=",", help="Karakter yang memisahkan tiap jawaban dalam satu sel. Ganti menjadi ';' atau ', ' jika jawaban Anda sendiri mengandung koma.")
+            result = multi_choice_analysis(df, selected_col, delimiter=mc_delimiter)
             val_col, count_col = "Value", "Count"
         elif data_type == "scale":
             result = scale_analysis(df, selected_col)
@@ -351,8 +353,12 @@ with tab_charts:
                 return f"<b>{txt}</b>" if txt and label_bold else txt
 
             result = result.copy()
+            
+            # Bungkus teks panjang agar tidak terpotong (clipped) di legend atau label
+            import textwrap
+            result[val_col] = result[val_col].apply(lambda x: "<br>".join(textwrap.wrap(str(x), width=50)))
+            
             result["_text"] = result.apply(build_text, axis=1) if (show_count or show_percent or show_name) else None
-            result[val_col] = result[val_col].astype(str)
 
             if chart_type in ("Bar Chart", "Horizontal Bar"):
                 if bar_sort == "asc": result = result.sort_values(count_col, ascending=True)
