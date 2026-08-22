@@ -12,4 +12,3 @@ thefuzz
 python-Levenshtein
 scikit-learn
 scipy
-kaleido

@@ -1401,10 +1401,34 @@ with tab_thematic:
                         st.caption("Tidak ada contoh respons tersedia.")
 
                 # Validation controls dihilangkan dari kartu, sisa tombol eksplorasi
-                if st.button(":material/open_with: Move Response", key=f"move_open_{gid}",
-                              help="Pindahkan respons tertentu ke kelompok lain"):
-                    st.session_state[f"show_move_{gid}"] = not st.session_state.get(f"show_move_{gid}", False)
-                    st.rerun()
+                btn_c1, btn_c2 = st.columns([1, 1])
+                with btn_c1:
+                    if st.button(":material/open_with: Move Response", key=f"move_open_{gid}",
+                                  help="Pindahkan respons tertentu ke kelompok lain", use_container_width=True):
+                        st.session_state[f"show_move_{gid}"] = not st.session_state.get(f"show_move_{gid}", False)
+                        st.session_state[f"show_merge_card_{gid}"] = False
+                        st.rerun()
+                with btn_c2:
+                    if st.button(":material/merge_type: Merge Kelompok", key=f"merge_open_{gid}", 
+                                 help="Gabungkan seluruh kelompok ini dengan kelompok lain", use_container_width=True):
+                        st.session_state[f"show_merge_card_{gid}"] = not st.session_state.get(f"show_merge_card_{gid}", False)
+                        st.session_state[f"show_move_{gid}"] = False
+                        st.rerun()
+
+                # Merge panel
+                if st.session_state.get(f"show_merge_card_{gid}", False):
+                    with st.container(border=True):
+                        st.markdown("**Gabungkan Kelompok Ini dengan Kelompok Lain:**")
+                        group_labels_map = {other_gid: f"{other_g.candidate_label} ({other_g.size} respons)" for other_gid, other_g in groups.items() if other_gid != gid}
+                        target_merge_gid = st.selectbox("Pilih kelompok tujuan:", options=[""] + list(group_labels_map.keys()), format_func=lambda x: group_labels_map.get(x, "Pilih...") if x else "Pilih...", key=f"target_merge_{gid}")
+                        merge_name = st.text_input("Nama Tema Final Setelah Merge (opsional):", key=f"merge_name_{gid}")
+                        
+                        if st.button(":material/merge_type: Eksekusi Merge", key=f"exec_merge_{gid}", type="primary", disabled=not target_merge_gid):
+                            from utils.open_ended_state import merge_groups
+                            name_to_use = merge_name.strip() if merge_name.strip() else f"Merged Tema"
+                            merge_groups([gid, target_merge_gid], name_to_use)
+                            st.success("Merge berhasil!")
+                            st.rerun()
 
                 # Move response panel
                 if st.session_state.get(f"show_move_{gid}", False):
@@ -1745,8 +1769,6 @@ with tab_thematic:
                 with st.container():
                     st.markdown("#### Hasil Akhir (Grafik & Tabel)")
                     
-                    tab_interactive, tab_copy = st.tabs(["📊 Interactive Chart & Table", "🖼️ Mode Copy to Word (Gambar Statis)"])
-                    
                     fig_final = px.bar(
                         summary_df,
                         y="Tema",
@@ -1766,56 +1788,63 @@ with tab_thematic:
                     if force_light_mode:
                         fig_final.update_layout(**LIGHT_LAYOUT)
 
-                    with tab_interactive:
-                        st.plotly_chart(fig_final, use_container_width=True,
-                                        config={"toImageButtonOptions": {"filename": "theme_distribution", "scale": 2}},
-                                        theme=None if force_light_mode else "streamlit")
+                    st.plotly_chart(fig_final, use_container_width=True,
+                                    config={"toImageButtonOptions": {"filename": "theme_distribution", "scale": 2}},
+                                    theme=None if force_light_mode else "streamlit")
 
-                        # Tabel ringkasan tema
-                        st.markdown("#### Tabel Ringkasan Tema Final")
-                        st.dataframe(summary_df, use_container_width=True, hide_index=True)
-                        
-                    with tab_copy:
-                        st.info("💡 **Tips:** Klik kanan pada gambar grafik atau tabel di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
+                    # Tabel ringkasan tema
+                    st.markdown("#### Tabel Ringkasan Tema Final")
+                    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                    
+                    if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", help="Klik untuk membuat versi gambar statis dari grafik yang bisa di-copy paste."):
+                        st.info("💡 **Tips:** Klik kanan pada gambar grafik di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
                         try:
-                            # Render Chart as Image
-                            chart_bytes = fig_final.to_image(format="png", width=900, height=500, scale=2)
-                            st.image(chart_bytes, caption="Grafik Distribusi Tema (Copyable)")
+                            import matplotlib.pyplot as plt
+                            import io
                             
-                            st.markdown("<br/>", unsafe_allow_html=True)
+                            # Buat figure
+                            fig, ax = plt.subplots(figsize=(10, 6))
+                            df_sorted = summary_df.sort_values("Jumlah", ascending=True)
                             
-                            # Render Table as Image using go.Table
-                            import plotly.graph_objects as go
+                            # Warna
+                            bar_color = "#6366f1" if force_light_mode else "#818cf8"
+                            bg_color = "white" if force_light_mode else "#0e1117"
+                            text_color = "black" if force_light_mode else "white"
                             
-                            header_color = '#e2e8f0' if force_light_mode else '#334155'
-                            font_color_h = 'black' if force_light_mode else 'white'
-                            cell_color = 'white' if force_light_mode else '#1e293b'
-                            font_color_c = 'black' if force_light_mode else 'white'
-                            bg_color = 'white' if force_light_mode else '#0e1117'
-
-                            fig_table = go.Figure(data=[go.Table(
-                                header=dict(values=list(summary_df.columns),
-                                            fill_color=header_color,
-                                            font=dict(color=font_color_h, size=14),
-                                            align='left'),
-                                cells=dict(values=[summary_df[col] for col in summary_df.columns],
-                                           fill_color=cell_color,
-                                           font=dict(color=font_color_c, size=12),
-                                           align='left',
-                                           height=30)
-                            )])
-                            table_height = min(600, 100 + len(summary_df)*30)
-                            fig_table.update_layout(
-                                margin=dict(t=20, b=20, l=20, r=20), 
-                                height=table_height,
-                                paper_bgcolor=bg_color
-                            )
-                                
-                            table_bytes = fig_table.to_image(format="png", width=900, scale=2)
-                            st.image(table_bytes, caption="Tabel Ringkasan Tema (Copyable)")
+                            fig.patch.set_facecolor(bg_color)
+                            ax.set_facecolor(bg_color)
+                            
+                            bars = ax.barh(df_sorted["Tema"], df_sorted["Jumlah"], color=bar_color)
+                            
+                            for bar, pct in zip(bars, df_sorted["Persentase"]):
+                                ax.text(bar.get_width() + (df_sorted["Jumlah"].max()*0.01), bar.get_y() + bar.get_height()/2, 
+                                        f"{pct:.1f}%", va='center', ha='left', fontsize=10, color=text_color)
+                                        
+                            ax.set_title("Distribusi Frekuensi Tema", fontsize=14, pad=20, color=text_color)
+                            ax.set_xlabel("Jumlah Respons", fontsize=12, color=text_color)
+                            ax.tick_params(colors=text_color)
+                            
+                            ax.spines['top'].set_visible(False)
+                            ax.spines['right'].set_visible(False)
+                            ax.spines['bottom'].set_color(text_color)
+                            ax.spines['left'].set_color(text_color)
+                            
+                            plt.tight_layout()
+                            
+                            buf = io.BytesIO()
+                            fig.savefig(buf, format="png", dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor())
+                            buf.seek(0)
+                            
+                            st.image(buf, caption="Grafik Distribusi Tema (Copyable PNG)")
+                            plt.close(fig)
+                            
+                            st.markdown("---")
+                            st.markdown("##### Tabel Copy-Paste (Plain HTML)")
+                            st.caption("Blok/Sorot seluruh tabel di bawah ini dengan kursor, tekan Ctrl+C, lalu Ctrl+V di Word.")
+                            st.table(summary_df)
                             
                         except Exception as e:
-                            st.error(f"Gagal membuat gambar statis. Pastikan package `kaleido` terinstall. Error detail: {e}")
+                            st.error(f"Gagal mem-generate gambar statis lewat Matplotlib. Error: {e}")
 
             # Tabel pemetaan respons
             with st.expander(":material/table_chart: Tabel Pemetaan Respons Lengkap"):

@@ -148,20 +148,13 @@ def inject_theme_css() -> None:
         body {{ background-color: {bg} !important; }}
         [data-testid="stApp"] {{ background-color: {bg} !important; }}
 
-        /* Kill old Streamlit UI remnants */
-        .css-1d391kg, .css-12oz5g7, .css-18e3th9,
-        .css-1lcbmhc, .css-hxt7ib, .css-k1vhr4,
-        .block-container > div:first-child > div:first-child > div[data-testid="stVerticalBlock"] > div:first-child > div[data-testid="stHorizontalBlock"]:first-child {{
-            display: none !important;
-        }}
-
         /* Hide default Streamlit menu, footer */
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; }}
         
         /* Ensure Sidebar Toggle remains visible */
-        header {{ background-color: transparent !important; z-index: 999 !important; pointer-events: none !important; }}
-        [data-testid="stHeader"] {{ background-color: transparent !important; pointer-events: none !important; }}
+        header {{ background-color: transparent !important; z-index: 999 !important; }}
+        [data-testid="stHeader"] {{ background-color: transparent !important; }}
         [data-testid="collapsedControl"],
         [data-testid="stSidebarCollapseButton"],
         header button,
@@ -169,7 +162,6 @@ def inject_theme_css() -> None:
             color: {accent} !important;
             z-index: 100000 !important;
             visibility: visible !important;
-            pointer-events: auto !important;
             display: flex !important;
         }}
 
