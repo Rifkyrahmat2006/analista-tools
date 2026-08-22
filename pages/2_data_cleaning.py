@@ -403,15 +403,16 @@ with tab_prodi:
             result_df = st.session_state["prodi_match_result"]
 
             n_total = len(result_df)
-            n_matched = (result_df["match_type"].isin(["exact", "fuzzy"])).sum()
+            n_matched = (result_df["match_type"].isin(["exact", "fuzzy", "keyword"])).sum()
             n_exact = (result_df["match_type"] == "exact").sum()
             n_fuzzy = (result_df["match_type"] == "fuzzy").sum()
+            n_keyword = (result_df["match_type"] == "keyword").sum()
             n_unmatched = n_total - n_matched
 
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Total Baris", n_total)
             m2.metric("Match Persis", n_exact)
-            m3.metric("Match Fuzzy", n_fuzzy)
+            m3.metric("Match Fuzzy/Kata Kunci", n_fuzzy + n_keyword)
             m4.metric("Tidak Cocok", n_unmatched)
 
             preview = pd.concat(
