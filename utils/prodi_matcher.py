@@ -48,20 +48,46 @@ def _normalize(text: str) -> str:
     return t
 
 
-def _build_lookup(prodi_data: List[Dict]) -> Tuple[Dict[str, Dict], List[str]]:
+def _detect_jenjang(text: str) -> Optional[str]:
+    """Deteksi jenjang (S1/D3) yang disebut eksplisit di teks mentah, sebelum di-strip."""
+    if not isinstance(text, str):
+        return None
+    t = text.upper()
+    if re.search(r"\bD\s?\.?\s?I{2,3}\b|\bD3\b|\bD-3\b", t):
+        return "D3"
+    if re.search(r"\bS\s?\.?\s?1\b", t):
+        return "S1"
+    return None
+
+
+def _build_lookup(prodi_data: List[Dict]) -> Tuple[Dict[str, List[Dict]], List[str]]:
     """
-    Bangun index: alias_string -> record prodi, plus daftar semua alias
-    (untuk fuzzy candidate pool).
+    Bangun index: alias_string -> list of record prodi (bisa lebih dari satu
+    kalau nama sama muncul di jenjang berbeda, mis. "Akuntansi" ada di S1
+    dan D3), plus daftar semua alias (untuk fuzzy candidate pool).
     """
-    lookup: Dict[str, Dict] = {}
+    lookup: Dict[str, List[Dict]] = {}
     for rec in prodi_data:
         candidates = set(rec.get("aliases", []))
         candidates.add(rec.get("nama_prodi", "").lower())
         for c in candidates:
             norm = _normalize(c)
-            if norm and norm not in lookup:
-                lookup[norm] = rec
+            if not norm:
+                continue
+            lookup.setdefault(norm, [])
+            if rec not in lookup[norm]:
+                lookup[norm].append(rec)
     return lookup, list(lookup.keys())
+
+
+def _pick_record(candidates: List[Dict], jenjang_hint: Optional[str]) -> Dict:
+    """Kalau satu alias punya >1 record (beda jenjang), pilih yang cocok dengan hint jenjang."""
+    if len(candidates) == 1 or not jenjang_hint:
+        return candidates[0]
+    for c in candidates:
+        if c.get("jenjang") == jenjang_hint:
+            return c
+    return candidates[0]
 
 
 def match_prodi(
@@ -85,20 +111,21 @@ def match_prodi(
 
     lookup, all_keys = _build_lookup(prodi_data)
     norm_input = _normalize(text)
+    jenjang_hint = _detect_jenjang(text)
 
     if not norm_input:
         return None
 
     # 1. Exact match
     if norm_input in lookup:
-        rec = lookup[norm_input]
+        rec = _pick_record(lookup[norm_input], jenjang_hint)
         return _format_result(rec, "exact", 100)
 
     # 2. Fuzzy match
     if _HAS_THEFUZZ and all_keys:
         best = process.extractOne(norm_input, all_keys, scorer=fuzz.token_sort_ratio)
         if best and best[1] >= fuzzy_threshold:
-            rec = lookup[best[0]]
+            rec = _pick_record(lookup[best[0]], jenjang_hint)
             return _format_result(rec, "fuzzy", best[1])
 
     return _format_result(None, "none", 0, raw_text=text)
