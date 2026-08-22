@@ -111,8 +111,8 @@ else:
 st.markdown("---")
 
 # --------------- Cleaning Operations ---------------
-tab_quick, tab_replace, tab_columns, tab_editor, tab_fuzzy, tab_prodi, tab_validation, tab_log = st.tabs([
-    ":material/flash_on: Quick", ":material/find_replace: Replace", ":material/view_column: Kolom", ":material/edit: Edit", ":material/merge_type: Kategori", ":material/school: Deteksi Jurusan", ":material/verified_user: Validasi", ":material/history: Log"
+tab_quick, tab_replace, tab_columns, tab_editor, tab_fuzzy, tab_prodi, tab_nim, tab_validation, tab_log = st.tabs([
+    ":material/flash_on: Quick", ":material/find_replace: Replace", ":material/view_column: Kolom", ":material/edit: Edit", ":material/merge_type: Kategori", ":material/school: Deteksi Jurusan", ":material/badge: Validasi NIM", ":material/verified_user: Validasi", ":material/history: Log"
 ])
 
 with tab_quick:
@@ -506,6 +506,120 @@ with tab_prodi:
                     use_container_width=True,
                     theme=None if force_light_mode else "streamlit",
                 )
+
+with tab_nim:
+    st.markdown("### Validasi NIM Mahasiswa (Unsoed)")
+    st.caption(
+        "Cocokkan NIM yang diisi responden ke data resmi "
+        "[registrasi.unsoed.ac.id](https://registrasi.unsoed.ac.id/info-mahasiswa), "
+        "lalu bandingkan Nama/Fakultas/Prodi yang diklaim vs data resmi."
+    )
+    st.warning(
+        ":material/privacy_tip: **Perhatian privasi**: fitur ini mengirim 1 request "
+        "per NIM ke server Unsoed (tidak menebak-nebak/brute-force NIM). Gunakan hanya "
+        "untuk data yang memang Anda punya hak untuk proses (mis. data pendaftar resmi "
+        "kegiatan Anda), bukan untuk mencari data mahasiswa lain secara sembarangan."
+    )
+
+    from utils.nim_validator import validate_nim_format, validate_dataframe_rows
+
+    text_cols = df.select_dtypes(include=["object"]).columns.tolist()
+    if not text_cols:
+        st.info("Tidak ada kolom teks pada dataset ini.")
+    else:
+        def _suggest(keywords):
+            for c in text_cols:
+                if any(k in c.lower() for k in keywords):
+                    return c
+            return None
+
+        col1, col2 = st.columns(2)
+        with col1:
+            nim_col = st.selectbox(
+                "Kolom NIM *(wajib)*", text_cols,
+                index=text_cols.index(_suggest(["nim"])) if _suggest(["nim"]) else 0,
+                key="nim_col",
+            )
+            nama_col = st.selectbox(
+                "Kolom Nama (opsional)", ["(tidak ada)"] + text_cols,
+                index=(text_cols.index(_suggest(["nama"])) + 1) if _suggest(["nama"]) else 0,
+                key="nim_nama_col",
+            )
+        with col2:
+            fakultas_col = st.selectbox(
+                "Kolom Fakultas (opsional)", ["(tidak ada)"] + text_cols,
+                index=(text_cols.index(_suggest(["fakultas"])) + 1) if _suggest(["fakultas"]) else 0,
+                key="nim_fakultas_col",
+            )
+            prodi_col_nim = st.selectbox(
+                "Kolom Prodi/Jurusan (opsional)", ["(tidak ada)"] + text_cols,
+                index=(text_cols.index(_suggest(["prodi", "jurusan"])) + 1) if _suggest(["prodi", "jurusan"]) else 0,
+                key="nim_prodi_col",
+            )
+
+        st.caption(":material/timer: Validasi berjalan berurutan (~0.6 detik/baris) untuk tidak membebani server kampus.")
+
+        max_rows = st.number_input(
+            "Batasi jumlah baris yang divalidasi (0 = semua baris)",
+            min_value=0, max_value=len(df), value=min(20, len(df)), step=5,
+            key="nim_max_rows",
+            help="Disarankan uji dengan sample kecil dulu sebelum validasi semua baris.",
+        )
+
+        if st.button(":material/verified: Jalankan Validasi NIM", type="primary", key="run_nim_validation"):
+            work_df = df if max_rows == 0 else df.head(max_rows)
+
+            rows = []
+            for _, r in work_df.iterrows():
+                rows.append({
+                    "nim": r.get(nim_col, ""),
+                    "nama": r.get(nama_col) if nama_col != "(tidak ada)" else None,
+                    "fakultas": r.get(fakultas_col) if fakultas_col != "(tidak ada)" else None,
+                    "prodi": r.get(prodi_col_nim) if prodi_col_nim != "(tidak ada)" else None,
+                })
+
+            progress_bar = st.progress(0.0, text="Memulai validasi...")
+
+            def _on_progress(i, total):
+                progress_bar.progress(i / total, text=f"Memvalidasi {i}/{total}...")
+
+            with st.spinner("Menghubungi server registrasi.unsoed.ac.id..."):
+                results = validate_dataframe_rows(rows, progress_callback=_on_progress)
+
+            progress_bar.empty()
+            st.session_state["nim_validation_result"] = pd.DataFrame(results)
+            st.success(f"Validasi selesai untuk {len(results)} baris!")
+
+        if "nim_validation_result" in st.session_state:
+            result_df = st.session_state["nim_validation_result"]
+
+            n_total = len(result_df)
+            n_format_invalid = (~result_df["format_valid"]).sum()
+            n_not_found = ((result_df["format_valid"]) & (result_df["ditemukan"] == False)).sum()
+            n_found = (result_df["ditemukan"] == True).sum()
+            n_mismatch = 0
+            for col in ["nama_cocok", "fakultas_cocok", "prodi_cocok"]:
+                if col in result_df.columns:
+                    n_mismatch += (result_df[col] == False).sum()
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Divalidasi", n_total)
+            m2.metric("Format Salah", int(n_format_invalid))
+            m3.metric("NIM Tidak Ditemukan", int(n_not_found))
+            m4.metric("Ditemukan di Server", int(n_found))
+
+            if n_mismatch > 0:
+                st.warning(f":material/warning: Ada {int(n_mismatch)} ketidakcocokan Nama/Fakultas/Prodi antara klaim responden vs data resmi.")
+
+            st.dataframe(result_df, use_container_width=True, height=400)
+
+            csv_bytes = result_df.to_csv(index=False).encode("utf-8-sig")
+            st.download_button(
+                ":material/download: Unduh Hasil Validasi (CSV)",
+                data=csv_bytes,
+                file_name="hasil_validasi_nim.csv",
+                mime="text/csv",
+            )
 
 with tab_validation:
     st.markdown("### Validasi Responden")
