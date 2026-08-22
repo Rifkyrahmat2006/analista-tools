@@ -1762,27 +1762,57 @@ with tab_thematic:
                 st.caption(f"📊 Total respons valid: **{valid_count}** | Denominator untuk persentase: {valid_count}")
 
                 # ── COLOR THEME SELECTION ──
-                color_options = ["Purples", "Blues", "Greens", "Reds", "Oranges", "Plasma", "Viridis", "Inferno", "Magma", "Tealgrn"]
+                color_options = [
+                    "Solid Indigo", "Solid Emerald", "Solid Rose", "Solid Slate",
+                    "Purples (Gradient)", "Blues (Gradient)", "Greens (Gradient)", 
+                    "Reds (Gradient)", "Oranges (Gradient)", "Plasma (Gradient)", 
+                    "Viridis (Gradient)"
+                ]
                 selected_color = st.selectbox("Pilih Tema Warna Bar Chart:", color_options, index=0)
+                
+                # Buat label hybrid (Jumlah (Persentase%))
+                summary_df["LabelText"] = summary_df.apply(lambda row: f"{row['Jumlah']} ({row['Persentase']:.1f}%)", axis=1)
 
                 # Distribution chart
                 with st.container():
                     st.markdown("#### Hasil Akhir (Grafik & Tabel)")
                     
-                    fig_final = px.bar(
-                        summary_df,
-                        y="Tema",
-                        x="Jumlah",
-                        orientation="h",
-                        text="Persentase",
-                        color="Jumlah",
-                        color_continuous_scale=selected_color,
-                        title="Distribusi Frekuensi Tema",
-                    )
-                    fig_final.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+                    is_solid = selected_color.startswith("Solid")
+                    solid_colors = {
+                        "Solid Indigo": "#4f46e5",
+                        "Solid Emerald": "#10b981",
+                        "Solid Rose": "#f43f5e",
+                        "Solid Slate": "#64748b"
+                    }
+                    
+                    if is_solid:
+                        color_hex = solid_colors.get(selected_color, "#4f46e5")
+                        fig_final = px.bar(
+                            summary_df,
+                            y="Tema",
+                            x="Jumlah",
+                            orientation="h",
+                            text="LabelText",
+                            title="Distribusi Frekuensi Tema",
+                        )
+                        fig_final.update_traces(marker_color=color_hex)
+                    else:
+                        grad_name = selected_color.replace(" (Gradient)", "")
+                        fig_final = px.bar(
+                            summary_df,
+                            y="Tema",
+                            x="Jumlah",
+                            orientation="h",
+                            text="LabelText",
+                            color="Jumlah",
+                            color_continuous_scale=grad_name,
+                            title="Distribusi Frekuensi Tema",
+                        )
+                        fig_final.update_layout(coloraxis_showscale=False)
+                        
+                    fig_final.update_traces(textposition="outside")
                     fig_final.update_layout(
                         yaxis={"categoryorder": "total ascending"},
-                        coloraxis_showscale=False,
                         margin=dict(t=50, b=20, l=20, r=80),
                     )
                     if force_light_mode:
@@ -1807,7 +1837,11 @@ with tab_thematic:
                             df_sorted = summary_df.sort_values("Jumlah", ascending=True)
                             
                             # Warna
-                            bar_color = "#6366f1" if force_light_mode else "#818cf8"
+                            if is_solid:
+                                bar_color = solid_colors.get(selected_color, "#4f46e5")
+                            else:
+                                bar_color = "#6366f1" if force_light_mode else "#818cf8"
+                                
                             bg_color = "white" if force_light_mode else "#0e1117"
                             text_color = "black" if force_light_mode else "white"
                             
@@ -1816,9 +1850,9 @@ with tab_thematic:
                             
                             bars = ax.barh(df_sorted["Tema"], df_sorted["Jumlah"], color=bar_color)
                             
-                            for bar, pct in zip(bars, df_sorted["Persentase"]):
+                            for bar, lbl in zip(bars, df_sorted["LabelText"]):
                                 ax.text(bar.get_width() + (df_sorted["Jumlah"].max()*0.01), bar.get_y() + bar.get_height()/2, 
-                                        f"{pct:.1f}%", va='center', ha='left', fontsize=10, color=text_color)
+                                        lbl, va='center', ha='left', fontsize=10, color=text_color)
                                         
                             ax.set_title("Distribusi Frekuensi Tema", fontsize=14, pad=20, color=text_color)
                             ax.set_xlabel("Jumlah Respons", fontsize=12, color=text_color)
