@@ -466,12 +466,23 @@ with tab_prodi:
             st.caption('Label memakai format "S1/D3 Nama Prodi" agar prodi yang sama namanya tapi beda jenjang tetap terbedakan.')
 
             import plotly.express as px
+            from utils.theme import get_light_plotly_layout
 
             chart_df = result_df[result_df["nama_prodi_display"].notna()]
             if chart_df.empty:
                 st.info("Belum ada data yang berhasil dicocokkan untuk divisualisasikan.")
             else:
-                top_n = st.slider("Tampilkan berapa jurusan teratas", 5, 50, 20, key="prodi_chart_topn")
+                col_topn, col_light = st.columns([3, 1])
+                with col_topn:
+                    top_n = st.slider("Tampilkan berapa jurusan teratas", 5, 50, 20, key="prodi_chart_topn")
+                with col_light:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    force_light_mode = st.checkbox(
+                        "Paksa Terang",
+                        key="prodi_chart_force_light",
+                        help="Aktifkan agar chart berlatar putih — cocok sebelum diunduh/export biar siap cetak.",
+                    )
+
                 counts = (
                     chart_df["nama_prodi_display"]
                     .value_counts()
@@ -488,7 +499,13 @@ with tab_prodi:
                     title=f"Top {min(top_n, len(counts))} Jurusan Responden",
                 )
                 fig.update_layout(height=max(400, 24 * len(counts)), yaxis_title="", xaxis_title="Jumlah Responden")
-                st.plotly_chart(fig, use_container_width=True)
+                if force_light_mode:
+                    fig.update_layout(**get_light_plotly_layout())
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True,
+                    theme=None if force_light_mode else "streamlit",
+                )
 
 with tab_validation:
     st.markdown("### Validasi Responden")
