@@ -738,8 +738,57 @@ with tab_thematic:
 
                 if clustering_mode == "K-Means (Custom K)":
                     custom_k = st.number_input("Target Jumlah Kelompok (K)", min_value=2, max_value=50, value=10, step=1, key="oe_custom_k")
+
+                    # ── Elbow Method Chart ──
+                    with st.expander(":material/show_chart: Elbow Method — Panduan Memilih K", expanded=False):
+                        st.caption(
+                            "Grafik ini menunjukkan **inertia** (total jarak dalam cluster) untuk setiap nilai K. "
+                            "Pilih K di titik 'siku' grafik — di mana penurunan inertia mulai melambat secara signifikan."
+                        )
+                        # Hanya hitung jika sudah ada TF-IDF matrix dari run sebelumnya
+                        elbow_matrix = st.session_state.get("oe_tfidf_matrix")
+                        if elbow_matrix is not None:
+                            try:
+                                from utils.nlp_clustering import compute_elbow_data, filter_zero_vectors
+                                import plotly.graph_objects as _go
+                                elbow_resp_ids = st.session_state.get("oe_resp_ids_for_clustering", [])
+                                elbow_mat_filtered, _, _ = filter_zero_vectors(elbow_matrix, elbow_resp_ids) if elbow_resp_ids else (elbow_matrix, [], [])
+                                k_max_elbow = min(15, max(2, elbow_mat_filtered.shape[0] - 1))
+                                elbow_data = compute_elbow_data(elbow_mat_filtered, k_max=k_max_elbow, random_state=42)
+                                if elbow_data:
+                                    ks = [d["k"] for d in elbow_data]
+                                    inertias = [d["inertia"] for d in elbow_data]
+                                    fig_elbow = _go.Figure()
+                                    fig_elbow.add_trace(_go.Scatter(
+                                        x=ks, y=inertias,
+                                        mode="lines+markers",
+                                        marker=dict(size=8, color="#667eea"),
+                                        line=dict(width=2, color="#667eea"),
+                                        name="Inertia"
+                                    ))
+                                    fig_elbow.add_vline(
+                                        x=custom_k, line_dash="dash", line_color="#f5576c",
+                                        annotation_text=f"K={custom_k} (dipilih)",
+                                        annotation_position="top right"
+                                    )
+                                    fig_elbow.update_layout(
+                                        xaxis_title="Jumlah Cluster (K)",
+                                        yaxis_title="Inertia (WCSS)",
+                                        height=300,
+                                        margin=dict(t=30, b=40, l=60, r=30),
+                                        showlegend=False
+                                    )
+                                    st.plotly_chart(fig_elbow, use_container_width=True, config={"displaylogo": False})
+                                    st.caption(":material/info: Garis merah = K yang Anda pilih saat ini. Idealnya berada di 'siku' grafik.")
+                                else:
+                                    st.info("Data tidak cukup untuk menghitung Elbow Method.")
+                            except Exception as _e:
+                                st.caption(f"Elbow chart tidak tersedia: {_e}")
+                        else:
+                            st.info(":material/tips_and_updates: Jalankan analisis sekali terlebih dahulu agar Elbow chart dapat ditampilkan berdasarkan data asli Anda.")
                 else:
                     custom_k = 10
+
 
                 random_state = st.number_input("Random State", value=42, key="oe_random_state",
                                                help="Untuk reproduksibilitas hasil clustering.")
@@ -1029,6 +1078,7 @@ with tab_thematic:
                                             st.session_state["oe_processing_done"] = True
                                             st.session_state["oe_is_finalized"] = False
                                             st.session_state["oe_last_params_hash"] = current_hash
+                                            st.session_state["oe_clustering_model"] = model  # simpan untuk heatmap
                                             
                                             from utils.open_ended_state import update_merge_suggestions
                                             update_merge_suggestions()
@@ -1095,6 +1145,73 @@ with tab_thematic:
                     
                     st.dataframe(display_df.style.apply(highlight_best, axis=1).format({"Silhouette": "{:.3f}", "Rasio Noise": "{:.1%}", "Composite Score": "{:.3f}"}), use_container_width=True, hide_index=True)
                     st.caption(":material/lightbulb: Metode dengan baris berwarna dipilih karena memberikan pemisahan teks terbaik dan rasio noise terkecil.")
+
+                # ── Cluster Similarity Heatmap (K-Means only) ──
+                stored_model = st.session_state.get("oe_clustering_model")
+                if stored_model is not None and hasattr(stored_model, "cluster_centers_"):
+                    try:
+                        from utils.nlp_clustering import compute_cluster_similarity_matrix
+                        import plotly.graph_objects as _go_bench
+                        import numpy as _np_bench
+                        candidate_groups = st.session_state.get("oe_candidate_groups", {})
+                        # Buat label dari nama tema candidate group
+                        n_centers = stored_model.cluster_centers_.shape[0]
+                        cluster_labels_display = []
+                        for i in range(n_centers):
+                            # Cari group yang sesuai dengan cluster index
+                            matched = [g for g in candidate_groups.values() if hasattr(g, 'cluster_id') and g.cluster_id == i]
+                            if matched:
+                                name = matched[0].final_theme_name or matched[0].candidate_label
+                                cluster_labels_display.append(f"Cluster {i}: {name[:25]}...")
+                            else:
+                                cluster_labels_display.append(f"Cluster {i}")
+
+                        sim_mat = compute_cluster_similarity_matrix(stored_model, None)
+                        if sim_mat is not None:
+                            st.markdown("---")
+                            st.markdown("**:material/grid_view: Cluster Similarity Heatmap**")
+                            st.caption(
+                                "Menunjukkan kemiripan cosine antar centroid cluster. "
+                                "**Diagonal = 1.0** (identik). Off-diagonal mendekati 0 = cluster terpisah baik (bagus). "
+                                "Nilai tinggi di luar diagonal = cluster terlalu mirip → pertimbangkan untuk merge."
+                            )
+                            # Highlight pasangan terlalu mirip (sim > 0.7, bukan diagonal)
+                            n = sim_mat.shape[0]
+                            sim_display = _np_bench.round(sim_mat, 3)
+                            fig_heat = _go_bench.Figure(data=_go_bench.Heatmap(
+                                z=sim_display,
+                                x=cluster_labels_display[:n],
+                                y=cluster_labels_display[:n],
+                                colorscale="RdYlGn",
+                                zmid=0.5,
+                                zmin=0, zmax=1,
+                                text=sim_display,
+                                texttemplate="%{text:.2f}",
+                                showscale=True,
+                                colorbar=dict(title="Similarity")
+                            ))
+                            fig_heat.update_layout(
+                                height=max(300, n * 60),
+                                margin=dict(t=20, b=80, l=20, r=20),
+                                xaxis=dict(tickangle=-45)
+                            )
+                            st.plotly_chart(fig_heat, use_container_width=True, config={"displaylogo": False})
+
+                            # Warning jika ada pasangan terlalu mirip
+                            high_sim_pairs = []
+                            for i in range(n):
+                                for j in range(i+1, n):
+                                    if sim_mat[i, j] > 0.70:
+                                        high_sim_pairs.append((i, j, sim_mat[i, j]))
+                            if high_sim_pairs:
+                                st.warning(
+                                    f":material/warning: **{len(high_sim_pairs)} pasang cluster sangat mirip** (similarity > 0.70). "
+                                    "Pertimbangkan untuk merge cluster-cluster tersebut:\n" +
+                                    "\n".join([f"- Cluster {i} & {j}: similarity = **{s:.2f}**" for i, j, s in high_sim_pairs])
+                                )
+                    except Exception as _e_heat:
+                        pass  # Gagal diam-diam, tidak ganggu alur utama
+
         
         if is_rejected:
             st.info(":material/lightbulb: Gunakan fitur **Manual Coding Assistance** di bawah ini untuk membentuk kategori secara rasional berdasarkan kata kunci dominan.")
@@ -1231,6 +1348,21 @@ with tab_thematic:
                         else:
                             st.caption("Kedua kandidat memiliki kemiripan tinggi. Periksa manual sebelum menggabungkan.")
                         
+                        # ── Silhouette Impact Indicator ──
+                        current_sil = st.session_state.get("oe_benchmark_report", [{}])
+                        current_sil = current_sil[0].get("silhouette", None) if current_sil else None
+                        centroid_sim = sugg.get("centroid_sim", sugg["score"])
+                        if current_sil is not None:
+                            # Estimasi: semakin mirip cluster yang di-merge,
+                            # semakin kecil dampak negatifnya. Tapi jumlah cluster berkurang = rata-rata sil bisa turun.
+                            # Heuristik: jika sim > 0.7 → merge aman, 0.5-0.7 → hati-hati, < 0.5 → berisiko
+                            if centroid_sim >= 0.70:
+                                st.success(f":material/check_circle: **Dampak Merge: Rendah.** Kedua cluster sangat mirip (sim={centroid_sim:.2f}). Merge kemungkinan tidak menurunkan kualitas signifikan.")
+                            elif centroid_sim >= 0.50:
+                                st.warning(f":material/warning: **Dampak Merge: Sedang.** Kemiripan={centroid_sim:.2f}. Pastikan konteks naratif keduanya memang sama sebelum merge.")
+                            else:
+                                st.error(f":material/dangerous: **Dampak Merge: Tinggi.** Kemiripan rendah={centroid_sim:.2f}. Silhouette Score saat ini {current_sil:.3f} kemungkinan akan **menurun** jika merge dilakukan. Tinjau manual terlebih dahulu.")
+
                         c1, c2, c3 = st.columns([1,1,1])
                         with c1:
                             if st.button("Terima Merge", type="primary", key=f"do_merge_{ga.group_id}_{gb.group_id}"):

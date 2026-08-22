@@ -338,6 +338,52 @@ def filter_zero_vectors(tfidf_matrix, resp_ids: list) -> Tuple[np.ndarray, list,
     return filtered_matrix, valid_ids, zero_ids
 
 
+def compute_elbow_data(matrix, k_max: int = 12, random_state: int = 42) -> List[Dict]:
+    """
+    Hitung inertia K-Means untuk setiap K dari 2 s.d. k_max.
+    Digunakan untuk Elbow Method — membantu memilih K yang optimal.
+
+    Returns:
+        List of dicts: [{"k": int, "inertia": float}, ...]
+    """
+    dense = matrix.toarray() if sp.issparse(matrix) else np.asarray(matrix)
+    n_samples = dense.shape[0]
+    k_max = min(k_max, n_samples - 1)  # K tidak boleh >= n_samples
+
+    results = []
+    for k in range(2, k_max + 1):
+        try:
+            km = KMeans(n_clusters=k, random_state=random_state, n_init=10)
+            km.fit(dense)
+            results.append({"k": k, "inertia": float(km.inertia_)})
+        except Exception:
+            break
+    return results
+
+
+def compute_cluster_similarity_matrix(model, matrix) -> Optional[np.ndarray]:
+    """
+    Hitung matriks cosine similarity antar centroid cluster (hanya K-Means).
+    Digunakan untuk Cluster Similarity Heatmap.
+
+    Returns:
+        np.ndarray shape (n_clusters, n_clusters), atau None jika tidak tersedia.
+    """
+    if model is None or not hasattr(model, 'cluster_centers_'):
+        return None
+    try:
+        centers = model.cluster_centers_
+        # Normalize agar cosine similarity = dot product
+        norms = np.linalg.norm(centers, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1, norms)
+        normalized = centers / norms
+        sim_matrix = np.dot(normalized, normalized.T)
+        return sim_matrix
+    except Exception:
+        return None
+
+
+
 def run_clustering_benchmark(tfidf_matrix, resp_ids: list, random_state: int = 42) -> dict:
     """
     Jalankan K-Means, Agglomerative, dan DBSCAN.
