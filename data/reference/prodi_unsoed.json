@@ -1,6 +1,6 @@
 {
   "source_url": "https://pendaftaran.admisi.unsoed.ac.id/apps/info/prodi-dan-daya-tampung",
-  "scraped_at": "2026-08-22T15:34:38.828790+00:00",
+  "scraped_at": "2026-08-22T15:49:35.771862+00:00",
   "total_records": 66,
   "data": [
     {
@@ -154,6 +154,7 @@
       "akreditasi": "B",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "ekonomi",
         "pendidikan ekonomi"
       ]
     },
@@ -205,7 +206,8 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
-        "ilmu politik"
+        "ilmu politik",
+        "politik"
       ]
     },
     {
@@ -256,6 +258,7 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "dokter",
         "pendidikan dokter"
       ]
     },
@@ -409,6 +412,7 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "gizi",
         "ilmu gizi"
       ]
     },
@@ -447,6 +451,7 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "jasmani",
         "pendidikan jasmani"
       ]
     },
@@ -459,7 +464,9 @@
       "akreditasi": "Prodi Baru",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
-        "pendidikan kepelatihan olahraga"
+        "kepelatihan olahraga",
+        "pendidikan kepelatihan olahraga",
+        "pko"
       ]
     },
     {
@@ -507,6 +514,7 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "bahasa indonesia",
         "pendidikan bahasa indonesia"
       ]
     },
@@ -519,6 +527,7 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "bahasa inggris",
         "pendidikan bahasa inggris"
       ]
     },
@@ -531,6 +540,7 @@
       "akreditasi": "Baik",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
+        "bahasa jepang",
         "pendidikan bahasa jepang"
       ]
     },
@@ -594,7 +604,8 @@
       "akreditasi": "Unggul",
       "kategori_program": "Sarjana (S1)",
       "aliases": [
-        "ilmu kelautan"
+        "ilmu kelautan",
+        "kelautan"
       ]
     },
     {
@@ -829,7 +840,8 @@
       "akreditasi": "Unggul",
       "kategori_program": "Diploma 3 (D3)",
       "aliases": [
-        "bahasa inggris"
+        "bahasa inggris",
+        "inggris"
       ]
     },
     {
@@ -841,7 +853,8 @@
       "akreditasi": "B",
       "kategori_program": "Diploma 3 (D3)",
       "aliases": [
-        "bahasa mandarin"
+        "bahasa mandarin",
+        "mandarin"
       ]
     }
   ]

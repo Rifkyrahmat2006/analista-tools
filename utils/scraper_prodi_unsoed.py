@@ -176,6 +176,7 @@ def build_search_aliases(records: List[Dict]) -> List[Dict]:
         "teknik elektro": ["elektro"],
         "arsitektur": ["ars"],
         "ekonomi pembangunan": ["ep"],
+        "pendidikan kepelatihan olahraga": ["pko"],
     }
 
     for r in records:
@@ -187,6 +188,13 @@ def build_search_aliases(records: List[Dict]) -> List[Dict]:
         stripped = re.sub(r"\s*kelas internasional\s*", "", nama_lower).strip()
         if stripped:
             aliases.add(stripped)
+
+        # versi tanpa prefix generik ("ilmu", "bahasa", "pendidikan") supaya
+        # jawaban singkat responden (mis. "Gizi", "Mandarin", "Kelautan")
+        # tetap match ke "Ilmu Gizi", "Bahasa Mandarin", "Ilmu Kelautan"
+        for prefix in ("ilmu ", "bahasa ", "pendidikan "):
+            if stripped.startswith(prefix):
+                aliases.add(stripped[len(prefix):].strip())
 
         # cocokkan ke dictionary singkatan (exact atau substring match)
         for full, abbrs in common_abbr.items():

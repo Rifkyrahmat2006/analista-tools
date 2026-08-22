@@ -10,15 +10,15 @@
 9,60201,Ekonomi Pembangunan,S1,Ekonomi dan Bisnis,Unggul,Sarjana (S1),ekonomi pembangunan|ep
 10,61201,Manajemen,S1,Ekonomi dan Bisnis,Unggul,Sarjana (S1),manajemen|mnj
 11,62201,Akuntansi,S1,Ekonomi dan Bisnis,Unggul,Sarjana (S1),akun|akuntansi
-12,87202,Pendidikan Ekonomi,S1,Ekonomi dan Bisnis,B,Sarjana (S1),pendidikan ekonomi
+12,87202,Pendidikan Ekonomi,S1,Ekonomi dan Bisnis,B,Sarjana (S1),ekonomi|pendidikan ekonomi
 13,54231,Peternakan,S1,Peternakan,Unggul,Sarjana (S1),fapet|peternakan
 14,74201,Hukum,S1,Hukum,Unggul,Sarjana (S1),hukum|ilmu hukum
 15,63201,Administrasi Publik,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),administrasi publik|ap
-16,67201,Ilmu Politik,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),ilmu politik
+16,67201,Ilmu Politik,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),ilmu politik|politik
 17,69201,Sosiologi,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),sosiologi
 18,70201,Ilmu Komunikasi,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),ikom|ilmu komunikasi|komunikasi
 19,64201,Hubungan Internasional,S1,Ilmu Sosial dan Ilmu Politik,Unggul,Sarjana (S1),hi|hubungan internasional
-20,11201,Pendidikan Dokter,S1,Kedokteran,Unggul,Sarjana (S1),pendidikan dokter
+20,11201,Pendidikan Dokter,S1,Kedokteran,Unggul,Sarjana (S1),dokter|pendidikan dokter
 21,12201,Kedokteran Gigi,S1,Kedokteran,Unggul,Sarjana (S1),fk|fkg|kedokteran|kedokteran gigi
 22,20201,Teknik Elektro,S1,Teknik,Unggul,Sarjana (S1),elektro|teknik elektro
 23,21201,Teknik Mesin,S1,Teknik,Baik,Sarjana (S1),teknik mesin
@@ -30,22 +30,22 @@
 29,23201,Arsitektur,S1,Teknik,Terakreditasi Pertama,Sarjana (S1),ars|arsitektur
 30,-,Teknik Pertambangan,S1,Teknik,Prodi Baru,Sarjana (S1),teknik pertambangan
 31,13201,Kesehatan Masyarakat,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),kesehatan masyarakat
-32,13211,Ilmu Gizi,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),ilmu gizi
+32,13211,Ilmu Gizi,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),gizi|ilmu gizi
 33,14201,Keperawatan,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),kep|keperawatan
 34,48201,Farmasi,S1,Ilmu-ilmu Kesehatan,Baik Sekali,Sarjana (S1),farm|farmasi
-35,85201,Pendidikan Jasmani,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),pendidikan jasmani
-36,-,Pendidikan Kepelatihan Olahraga,S1,Ilmu-ilmu Kesehatan,Prodi Baru,Sarjana (S1),pendidikan kepelatihan olahraga
+35,85201,Pendidikan Jasmani,S1,Ilmu-ilmu Kesehatan,Unggul,Sarjana (S1),jasmani|pendidikan jasmani
+36,-,Pendidikan Kepelatihan Olahraga,S1,Ilmu-ilmu Kesehatan,Prodi Baru,Sarjana (S1),kepelatihan olahraga|pendidikan kepelatihan olahraga|pko
 37,79201,Sastra Indonesia,S1,Ilmu Budaya,Unggul,Sarjana (S1),sastra indonesia
 38,79202,Sastra Inggris,S1,Ilmu Budaya,Unggul,Sarjana (S1),sastra inggris
 39,79204,Sastra Jepang,S1,Ilmu Budaya,Unggul,Sarjana (S1),sastra jepang
-40,88201,Pendidikan Bahasa Indonesia,S1,Ilmu Budaya,Unggul,Sarjana (S1),pendidikan bahasa indonesia
-41,88203,Pendidikan Bahasa Inggris,S1,Ilmu Budaya,Unggul,Sarjana (S1),pendidikan bahasa inggris
-42,88205,Pendidikan Bahasa Jepang,S1,Ilmu Budaya,Baik,Sarjana (S1),pendidikan bahasa jepang
+40,88201,Pendidikan Bahasa Indonesia,S1,Ilmu Budaya,Unggul,Sarjana (S1),bahasa indonesia|pendidikan bahasa indonesia
+41,88203,Pendidikan Bahasa Inggris,S1,Ilmu Budaya,Unggul,Sarjana (S1),bahasa inggris|pendidikan bahasa inggris
+42,88205,Pendidikan Bahasa Jepang,S1,Ilmu Budaya,Baik,Sarjana (S1),bahasa jepang|pendidikan bahasa jepang
 43,44201,Matematika,S1,Matematika dan Ilmu Pengetahuan Alam,Unggul,Sarjana (S1),matematika|mtk
 44,45201,Fisika,S1,Matematika dan Ilmu Pengetahuan Alam,Unggul,Sarjana (S1),fis|fisika
 45,47201,Kimia,S1,Matematika dan Ilmu Pengetahuan Alam,Unggul,Sarjana (S1),kim|kimia
 46,49205,Statistika,S1,Matematika dan Ilmu Pengetahuan Alam,Baik,Sarjana (S1),statistika
-47,54241,Ilmu Kelautan,S1,Perikanan dan Ilmu Kelautan,Unggul,Sarjana (S1),ilmu kelautan
+47,54241,Ilmu Kelautan,S1,Perikanan dan Ilmu Kelautan,Unggul,Sarjana (S1),ilmu kelautan|kelautan
 48,54242,Manajemen Sumberdaya Perairan,S1,Perikanan dan Ilmu Kelautan,Unggul,Sarjana (S1),manajemen|manajemen sumberdaya perairan|mnj
 49,54243,Akuakultur,S1,Perikanan dan Ilmu Kelautan,Baik Sekali,Sarjana (S1),akuakultur
 1,46201,Biologi Internasional,S1,Biologi,A,Sarjana Kelas Internasional (S1),bio|biologi|biologi internasional
@@ -63,5 +63,5 @@
 6,63412,Administrasi Perkantoran,D3,Ekonomi dan Bisnis,Unggul,Diploma 3 (D3),administrasi perkantoran
 7,63413,Administrasi Bisnis,D3,Ekonomi dan Bisnis,Unggul,Diploma 3 (D3),ab|adbis|administrasi bisnis
 8,54432,Budi Daya Ternak,D3,Peternakan,Unggul,Diploma 3 (D3),budi daya ternak
-9,79402,Bahasa Inggris,D3,Ilmu Budaya,Unggul,Diploma 3 (D3),bahasa inggris
-10,79409,Bahasa Mandarin,D3,Ilmu Budaya,B,Diploma 3 (D3),bahasa mandarin
+9,79402,Bahasa Inggris,D3,Ilmu Budaya,Unggul,Diploma 3 (D3),bahasa inggris|inggris
+10,79409,Bahasa Mandarin,D3,Ilmu Budaya,B,Diploma 3 (D3),bahasa mandarin|mandarin
