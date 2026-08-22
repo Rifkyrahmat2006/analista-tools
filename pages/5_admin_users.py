@@ -10,7 +10,7 @@ from utils.auth import require_role, render_user_badge_sidebar, current_user
 from utils.db import (
     init_db, ROLES, create_user, list_users, update_user_active,
     update_user_role, reset_user_password, delete_user, can_manage_role,
-    log_action, get_audit_log,
+    log_action, get_audit_log, delete_all_sessions_for_user,
 )
 from utils.permissions import PERMISSIONS, PERMISSION_LABELS, ALL_ROLES, get_role_permissions
 
@@ -64,6 +64,8 @@ with tab_users:
                             toggle_label = "Nonaktifkan" if u["active"] else "Aktifkan"
                             if st.button(toggle_label, key=f"toggle_{u['id']}", use_container_width=True):
                                 update_user_active(u["id"], not u["active"])
+                                if u["active"]:  # baru dinonaktifkan -> putus sesi login yg mungkin masih aktif
+                                    delete_all_sessions_for_user(u["id"])
                                 log_action(user["username"], user["role"], "toggle_user_active", f"{toggle_label} akun {u['username']}")
                                 st.rerun()
                         with bcol2:
@@ -102,8 +104,9 @@ with tab_users:
                                     st.error("Password minimal 8 karakter.")
                                 else:
                                     reset_user_password(u["id"], new_pw)
+                                    delete_all_sessions_for_user(u["id"])  # force-logout sesi lama
                                     log_action(user["username"], user["role"], "reset_password", f"Reset password {u['username']}")
-                                    st.success("Password berhasil direset.")
+                                    st.success("Password berhasil direset. Sesi login lama akun ini otomatis di-invalidate.")
 
 # ─────────────────────────────────────────────────────────────
 with tab_create:

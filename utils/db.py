@@ -25,7 +25,7 @@ import sqlite3
 import hashlib
 import secrets
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -126,8 +126,17 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+        """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_log(username)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments(assigned_to)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -227,6 +236,60 @@ def authenticate(username: str, plain_password: str) -> Optional[Dict]:
         return None
     touch_last_login(username)
     return user
+
+
+# ─────────────────────────────────────────────────────────────
+# SESSION TOKENS (persist login lintas refresh via cookie browser)
+# ─────────────────────────────────────────────────────────────
+# st.session_state Streamlit hidup per-koneksi WebSocket di server, HILANG
+# setiap kali browser refresh (WS baru = "sesi" baru di Streamlit). Supaya
+# login bertahan lintas refresh, token acak disimpan di COOKIE BROWSER
+# (bukan session_state) dan divalidasi balik ke tabel `sessions` di sini.
+
+SESSION_TTL_DAYS = 7
+
+
+def create_session_token(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    expires = now.replace(microsecond=0) + timedelta(days=SESSION_TTL_DAYS)
+    with db_cursor() as cur:
+        cur.execute(
+            "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (token, user_id, now.isoformat(), expires.isoformat()),
+        )
+    return token
+
+
+def get_user_by_session_token(token: str) -> Optional[Dict]:
+    """Return user dict kalau token valid & belum expired, None kalau tidak."""
+    if not token:
+        return None
+    with db_cursor() as cur:
+        cur.execute("SELECT * FROM sessions WHERE token = ?", (token,))
+        session = cur.fetchone()
+        if not session:
+            return None
+        expires_at = datetime.fromisoformat(session["expires_at"])
+        if datetime.now(timezone.utc) > expires_at:
+            cur.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            return None
+        cur.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],))
+        user_row = cur.fetchone()
+        if not user_row or not user_row["active"]:
+            return None
+        return dict(user_row)
+
+
+def delete_session_token(token: str) -> None:
+    with db_cursor() as cur:
+        cur.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+def delete_all_sessions_for_user(user_id: int) -> None:
+    """Force-logout semua sesi aktif milik satu user (mis. saat reset password)."""
+    with db_cursor() as cur:
+        cur.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
 
 
 def can_manage_role(actor_role: str, target_role: str) -> bool:

@@ -4,17 +4,65 @@ Auth Middleware untuk Streamlit
 Login form, session-state guard, dan helper role-check.
 Dipanggil di awal SETIAP halaman (app.py + semua pages/*.py) supaya
 akses ke seluruh aplikasi terkontrol.
+
+PERSISTENSI LOGIN LINTAS REFRESH:
+st.session_state Streamlit hidup per-koneksi WebSocket di server dan
+HILANG setiap kali browser refresh (WS baru dianggap "sesi" baru oleh
+Streamlit) — ini BUKAN bug, itu cara kerja normal Streamlit. Supaya
+user tidak ke-logout tiap refresh, token sesi acak disimpan di COOKIE
+BROWSER (lewat streamlit-cookies-controller) dan divalidasi balik ke
+tabel `sessions` di database pada awal tiap render halaman.
 """
 
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 
-from utils.db import authenticate, log_action, init_db, ROLES
+from utils.db import (
+    authenticate, log_action, init_db, ROLES,
+    create_session_token, get_user_by_session_token, delete_session_token,
+)
 
 SESSION_KEYS = ["auth_user", "auth_role", "auth_username", "auth_full_name"]
+COOKIE_NAME = "analista_session_token"
+
+
+@st.cache_resource
+def _get_cookie_controller() -> CookieController:
+    # cache_resource: satu instance controller per proses server, dipakai
+    # ulang lintas rerun (bukan dibuat baru tiap kali fungsi dipanggil).
+    return CookieController()
+
+
+def _restore_session_from_cookie() -> bool:
+    """
+    Kalau session_state kosong (mis. abis refresh) tapi ada cookie token
+    valid, restore login dari situ. Return True kalau berhasil restore.
+    """
+    if st.session_state.get("auth_user"):
+        return True  # sudah login di session_state, tidak perlu restore
+
+    controller = _get_cookie_controller()
+    token = controller.get(COOKIE_NAME)
+    if not token:
+        return False
+
+    user = get_user_by_session_token(token)
+    if not user:
+        return False
+
+    st.session_state["auth_user"] = True
+    st.session_state["auth_user_id"] = user["id"]
+    st.session_state["auth_username"] = user["username"]
+    st.session_state["auth_full_name"] = user["full_name"]
+    st.session_state["auth_role"] = user["role"]
+    st.session_state["auth_session_token"] = token
+    return True
 
 
 def is_logged_in() -> bool:
-    return st.session_state.get("auth_user") is not None
+    if st.session_state.get("auth_user") is not None:
+        return True
+    return _restore_session_from_cookie()
 
 
 def current_user() -> dict:
@@ -33,11 +81,19 @@ def _do_login(username: str, password: str) -> bool:
     user = authenticate(username, password)
     if not user:
         return False
+
+    token = create_session_token(user["id"])
+
     st.session_state["auth_user"] = True
     st.session_state["auth_user_id"] = user["id"]
     st.session_state["auth_username"] = user["username"]
     st.session_state["auth_full_name"] = user["full_name"]
     st.session_state["auth_role"] = user["role"]
+    st.session_state["auth_session_token"] = token
+
+    controller = _get_cookie_controller()
+    controller.set(COOKIE_NAME, token)
+
     log_action(user["username"], user["role"], "login", "Login berhasil")
     return True
 
@@ -46,7 +102,15 @@ def logout() -> None:
     user = current_user()
     if user:
         log_action(user["username"], user["role"], "logout", "Logout")
-    for key in SESSION_KEYS + ["auth_user_id"]:
+
+    token = st.session_state.get("auth_session_token")
+    if token:
+        delete_session_token(token)
+
+    controller = _get_cookie_controller()
+    controller.remove(COOKIE_NAME)
+
+    for key in SESSION_KEYS + ["auth_user_id", "auth_session_token"]:
         st.session_state.pop(key, None)
 
 
