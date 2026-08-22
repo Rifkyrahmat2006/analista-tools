@@ -344,6 +344,11 @@ with tab_charts:
             colors = get_colors(n_cats)
 
             total = result[count_col].sum()
+
+            result = result.copy()
+            result[val_col] = result[val_col].astype(str)
+
+            # ── Label untuk tooltip / text di batang ──
             def build_text(row):
                 parts = []
                 if show_name:    parts.append(str(row[val_col]))
@@ -352,47 +357,93 @@ with tab_charts:
                 txt = "<br>".join(parts) if parts else None
                 return f"<b>{txt}</b>" if txt and label_bold else txt
 
-            result = result.copy()
-            
-            # Bungkus teks panjang agar tidak terpotong (clipped) di legend atau label
-            import textwrap
-            result[val_col] = result[val_col].apply(lambda x: "<br>".join(textwrap.wrap(str(x), width=50)))
-            
             result["_text"] = result.apply(build_text, axis=1) if (show_count or show_percent or show_name) else None
+
+            # ── Display label (baris terpisah, TIDAK mengubah val_col) ──
+            # Ini dipakai untuk tick axis supaya teks panjang tidak meluber
+            import textwrap
+            result["_disp_label"] = result[val_col].apply(
+                lambda x: "<br>".join(textwrap.wrap(str(x), width=35))
+            )
 
             if chart_type in ("Bar Chart", "Horizontal Bar"):
                 if bar_sort == "asc": result = result.sort_values(count_col, ascending=True)
                 elif bar_sort == "desc": result = result.sort_values(count_col, ascending=False)
 
+            # Buat mapping val → display_label agar fig bisa pakai ticktext
+            label_map = dict(zip(result[val_col], result["_disp_label"]))
+
             fig = None
             if chart_type == "Bar Chart":
-                fig = px.bar(result, x=val_col, y=count_col, color=val_col, color_discrete_sequence=[solid_color]*n_cats if solid_color else colors, text="_text")
-                fig.update_xaxes(type="category", tickangle=-45, automargin=True)
+                fig = px.bar(
+                    result, x=val_col, y=count_col,
+                    color=val_col,
+                    color_discrete_sequence=[solid_color]*n_cats if solid_color else colors,
+                    text="_text"
+                )
+                # Ganti tick label dengan versi yang dibungkus
+                fig.update_xaxes(
+                    type="category", tickangle=-30, automargin=True,
+                    ticktext=result["_disp_label"].tolist(),
+                    tickvals=result[val_col].tolist()
+                )
                 _margin = compute_dynamic_margin("Bar Chart", result[val_col].tolist())
+                _margin["b"] = max(_margin.get("b", 50), 120)
             elif chart_type == "Horizontal Bar":
-                fig = px.bar(result, x=count_col, y=val_col, orientation="h", color=val_col, color_discrete_sequence=[solid_color]*n_cats if solid_color else colors, text="_text")
-                fig.update_yaxes(autorange="reversed", automargin=True)
+                fig = px.bar(
+                    result, x=count_col, y=val_col, orientation="h",
+                    color=val_col,
+                    color_discrete_sequence=[solid_color]*n_cats if solid_color else colors,
+                    text="_text"
+                )
+                fig.update_yaxes(autorange="reversed", automargin=True,
+                                 ticktext=result["_disp_label"].tolist(),
+                                 tickvals=result[val_col].tolist())
                 _margin = compute_dynamic_margin("Horizontal Bar", result[val_col].tolist())
+                _margin["l"] = max(_margin.get("l", 50), 200)
             elif chart_type == "Pie Chart":
-                fig = px.pie(result, names=val_col, values=count_col, color_discrete_sequence=colors)
-                if "_text" in result.columns and result["_text"].notnull().any():
-                    fig.update_traces(text=result["_text"], textinfo="text")
+                fig = px.pie(
+                    result, names=val_col, values=count_col,
+                    color_discrete_sequence=colors
+                )
+                # Tampilkan label yang singkat (bungkus) + value jika checkbox aktif
+                if show_count or show_percent:
+                    fig.update_traces(
+                        text=result["_text"],
+                        textinfo="text",
+                        hovertemplate="%{label}<br>%{value} (%{percent})<extra></extra>"
+                    )
                 _margin = compute_dynamic_margin("Pie Chart", result[val_col].tolist())
             elif chart_type == "Donut Chart":
-                fig = px.pie(result, names=val_col, values=count_col, color_discrete_sequence=colors, hole=0.45)
-                if "_text" in result.columns and result["_text"].notnull().any():
-                    fig.update_traces(text=result["_text"], textinfo="text")
+                fig = px.pie(
+                    result, names=val_col, values=count_col,
+                    color_discrete_sequence=colors, hole=0.45
+                )
+                if show_count or show_percent:
+                    fig.update_traces(
+                        text=result["_text"],
+                        textinfo="text",
+                        hovertemplate="%{label}<br>%{value} (%{percent})<extra></extra>"
+                    )
                 _margin = compute_dynamic_margin("Donut Chart", result[val_col].tolist())
             elif chart_type == "Treemap":
                 fig = px.treemap(result, path=[val_col], values=count_col, color=count_col, color_continuous_scale=chart_theme)
                 _margin = dict(t=60, b=50, l=50, r=50)
             elif chart_type == "Area Chart":
                 fig = px.area(result, x=val_col, y=count_col)
-                fig.update_xaxes(type="category", tickangle=-45, automargin=True)
+                fig.update_xaxes(
+                    type="category", tickangle=-30, automargin=True,
+                    ticktext=result["_disp_label"].tolist(),
+                    tickvals=result[val_col].tolist()
+                )
                 _margin = compute_dynamic_margin("Area Chart", result[val_col].tolist())
             elif chart_type == "Line Chart":
                 fig = px.line(result, x=val_col, y=count_col, markers=True)
-                fig.update_xaxes(type="category", tickangle=-45, automargin=True)
+                fig.update_xaxes(
+                    type="category", tickangle=-30, automargin=True,
+                    ticktext=result["_disp_label"].tolist(),
+                    tickvals=result[val_col].tolist()
+                )
                 _margin = compute_dynamic_margin("Line Chart", result[val_col].tolist())
 
             if fig:
