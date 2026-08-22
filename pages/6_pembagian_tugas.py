@@ -6,7 +6,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
-from utils.auth import require_login, render_user_badge_sidebar, current_user
+from utils.auth import render_user_badge_sidebar, current_user
+from utils.permissions import require_permission, has_permission
 from utils.db import (
     init_db, list_users, upsert_survey_questions, list_survey_questions,
     assign_question, update_assignment_progress, get_my_assignments, log_action,
@@ -17,7 +18,7 @@ from utils.question_detection import detect_question_type
 st.set_page_config(page_title="Pembagian Tugas", layout="wide")
 inject_theme_css()
 
-user = require_login()
+user = require_permission("tasks.view")
 render_user_badge_sidebar()
 init_db()
 
@@ -27,7 +28,9 @@ st.caption(
     "rekomendasi jenis chart otomatis, dan tulis kesimpulan langsung di sini."
 )
 
-is_manager = user["role"] in ("superadmin", "admin")
+# Tab setup & assign hanya utk role dgn izin "tasks.assign" (admin/superadmin).
+# Cek permission RBAC, bukan role string manual.
+is_manager = has_permission(user["role"], "tasks.assign")
 
 if "df" not in st.session_state or st.session_state.df is None:
     st.warning(":material/warning: Belum ada dataset. Silakan upload data terlebih dahulu di halaman **Upload Data**.")

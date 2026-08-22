@@ -24,7 +24,8 @@ from utils.text_analysis import analyze_text_column, get_top_keywords
 from utils.export_helpers import table_to_png
 from utils.question_detection import detect_question_type, analyze_column_features
 from utils.theme import inject_theme_css, get_light_plotly_layout, render_sidebar_footer, render_page_footer
-from utils.auth import require_login, render_user_badge_sidebar
+from utils.auth import render_user_badge_sidebar
+from utils.permissions import require_permission
 
 # ── New Open-Ended Analysis imports ─────────────────────────────────────────
 from utils.open_ended_config import (
@@ -87,7 +88,7 @@ st.set_page_config(page_title="Analysis", layout="wide")
 
 inject_theme_css()
 
-require_login()
+require_permission("analysis.run")
 render_user_badge_sidebar()
 
 # Initialize open-ended state

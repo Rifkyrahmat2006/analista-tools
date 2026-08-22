@@ -18,13 +18,14 @@ from utils.data_cleaning import (
     detect_hidden_nulls,
 )
 from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
-from utils.auth import require_login, render_user_badge_sidebar
+from utils.auth import render_user_badge_sidebar
+from utils.permissions import require_permission
 
 st.set_page_config(page_title="Data Cleaning", layout="wide")
 
 inject_theme_css()
 
-require_login()
+require_permission("dataset.clean")
 render_user_badge_sidebar()
 
 st.markdown("# :material/cleaning_services: Data Cleaning")

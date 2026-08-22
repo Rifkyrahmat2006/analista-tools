@@ -12,11 +12,14 @@ from utils.db import (
     update_user_role, reset_user_password, delete_user, can_manage_role,
     log_action, get_audit_log,
 )
+from utils.permissions import PERMISSIONS, PERMISSION_LABELS, ALL_ROLES, get_role_permissions
 
 st.set_page_config(page_title="Manajemen User", layout="wide")
 inject_theme_css()
 
-# Halaman ini butuh role admin atau superadmin (staff tidak bisa akses)
+# Halaman ini butuh role admin atau superadmin (staff tidak bisa akses).
+# users.manage_staff (admin) / users.manage_all (superadmin) — enforced
+# per-baris di bawah lewat can_manage_role(), bukan cuma gate halaman.
 user = require_role("superadmin", "admin")
 render_user_badge_sidebar()
 init_db()
@@ -24,8 +27,9 @@ init_db()
 st.markdown("# :material/admin_panel_settings: Manajemen User & Audit Log")
 st.caption(f"Masuk sebagai **{user['full_name']}** (`{user['role']}`)")
 
-tab_users, tab_create, tab_audit = st.tabs([
-    ":material/group: Daftar User", ":material/person_add: Tambah User", ":material/history: Audit Log"
+tab_users, tab_create, tab_audit, tab_rbac = st.tabs([
+    ":material/group: Daftar User", ":material/person_add: Tambah User",
+    ":material/history: Audit Log", ":material/security: Permission Matrix"
 ])
 
 # ─────────────────────────────────────────────────────────────
@@ -151,6 +155,42 @@ with tab_audit:
 
         csv_bytes = log_df.to_csv(index=False).encode("utf-8-sig")
         st.download_button(":material/download: Unduh Audit Log (CSV)", data=csv_bytes, file_name="audit_log.csv", mime="text/csv")
+
+# ─────────────────────────────────────────────────────────────
+with tab_rbac:
+    st.markdown("### Permission Matrix (RBAC)")
+    st.caption(
+        "Sumber kebenaran untuk 'siapa boleh apa' di seluruh Analista Tools. "
+        "superadmin memiliki semua izin secara otomatis (wildcard)."
+    )
+
+    all_permissions = sorted(PERMISSION_LABELS.keys())
+    matrix_rows = []
+    for perm in all_permissions:
+        row = {"Izin": PERMISSION_LABELS[perm], "Kode": perm}
+        for role in ALL_ROLES:
+            granted = perm in get_role_permissions(role)
+            row[role] = "✅ Ya" if granted else "❌ Tidak"
+        matrix_rows.append(row)
+    # users.manage_all khusus superadmin, tidak ada di PERMISSIONS dict staff/admin
+    matrix_rows.append({
+        "Izin": PERMISSION_LABELS["users.manage_all"],
+        "Kode": "users.manage_all",
+        "superadmin": "✅ Ya",
+        "admin": "❌ Tidak",
+        "staff": "❌ Tidak",
+    })
+
+    matrix_df = pd.DataFrame(matrix_rows)
+    st.dataframe(matrix_df, use_container_width=True, height=450, hide_index=True)
+
+    st.markdown("---")
+    st.markdown("#### Ringkasan Hierarki Role")
+    st.markdown("""
+- **:material/shield_person: superadmin** — akses penuh ke semua fitur & semua akun (termasuk kelola sesama admin/superadmin), lihat semua audit log.
+- **:material/admin_panel_settings: admin** — operasional penuh (dataset, analisis, assign tugas), kelola akun **staff saja** (tidak bisa kelola admin/superadmin lain), lihat audit log.
+- **:material/person: staff** — kerjakan dataset & tugas yang di-assign ke dirinya, tidak bisa kelola user atau lihat audit log user lain.
+    """)
 
 render_sidebar_footer()
 render_page_footer()
