@@ -151,19 +151,24 @@ def inject_theme_css() -> None:
         /* Hide default Streamlit menu, footer */
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; }}
-        
-        /* Ensure Sidebar Toggle remains visible */
-        header {{ background-color: transparent !important; z-index: 999 !important; }}
-        [data-testid="stHeader"] {{ background-color: transparent !important; }}
+        /* ─── PERMANENT SIDEBAR ─── */
+        /* Hapus tombol buka/tutup agar sidebar tidak bisa hilang */
         [data-testid="collapsedControl"],
-        [data-testid="stSidebarCollapseButton"],
-        header button,
-        [data-testid="stHeader"] button {{
-            color: {accent} !important;
-            z-index: 100000 !important;
-            visibility: visible !important;
-            display: flex !important;
+        [data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
         }}
+        
+        /* Paksa sidebar selalu muncul di layar dan tidak bisa disembunyikan (transform: none) */
+        [data-testid="stSidebar"] {{
+            display: flex !important;
+            visibility: visible !important;
+            transform: none !important;
+            min-width: 16rem !important;
+        }}
+
+        /* Sembunyikan header bawaan Streamlit agar tidak bentrok */
+        header {{ display: none !important; }}
+        [data-testid="stHeader"] {{ display: none !important; }}
 
         /* Kill deploy button */
         [data-testid="stToolbar"] {{ display: none !important; }}
