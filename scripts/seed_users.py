@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import secrets
+import time
 from utils.db import init_db, create_user, get_user_by_username
 
 # (username, full_name, role)
@@ -24,8 +25,26 @@ SEED_USERS = [
 ]
 
 
+def _init_db_with_retry(max_attempts: int = 10, delay_seconds: float = 2.0) -> None:
+    """
+    Retry koneksi DB — meski docker-compose punya depends_on:
+    condition: service_healthy, race condition kecil masih mungkin
+    terjadi (mis. Postgres healthy tapi belum terima koneksi baru).
+    """
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            init_db()
+            return
+        except Exception as e:
+            last_error = e
+            print(f"[WAIT] Database belum siap (percobaan {attempt}/{max_attempts}): {e}")
+            time.sleep(delay_seconds)
+    raise RuntimeError(f"Gagal konek database setelah {max_attempts} percobaan") from last_error
+
+
 def main():
-    init_db()
+    _init_db_with_retry()
     print("=" * 60)
     print("SEEDING AKUN AWAL — SIMPAN PASSWORD DI BAWAH INI!")
     print("(Password TIDAK bisa dilihat lagi setelah ini, hanya bisa direset)")

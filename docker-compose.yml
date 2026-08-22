@@ -1,19 +1,43 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: analista-tools-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=analista
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=analista_tools
+      - TZ=Asia/Jakarta
+    volumes:
+      - analista_pgdata:/var/lib/postgresql/data
+    ports:
+      # Bind localhost saja — Postgres TIDAK boleh terekspos ke LAN/internet.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analista -d analista_tools"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   analista-tools:
     build: .
     image: analista-tools:latest
     container_name: analista-tools
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       # Bind ke localhost saja — akses eksternal via reverse proxy / Tailscale
       # Serve, jangan expose port 8501 langsung ke 0.0.0.0/LAN.
       - "127.0.0.1:8501:8501"
     volumes:
-      # Volume persisten: database (users, audit log, assignments), dataset
-      # yang diupload, dan cache. Data ini HARUS selamat lintas rebuild image.
+      # Volume persisten: dataset yang diupload & cache. Data USER/ROLE/AUDIT
+      # sekarang di Postgres (volume analista_pgdata), bukan di sini lagi.
       - analista_data:/app/data
     environment:
       - TZ=Asia/Jakarta
+      - DATABASE_URL=postgresql://analista:${POSTGRES_PASSWORD}@postgres:5432/analista_tools
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -33,4 +57,6 @@ services:
 
 volumes:
   analista_data:
+    driver: local
+  analista_pgdata:
     driver: local

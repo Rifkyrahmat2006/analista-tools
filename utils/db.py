@@ -1,38 +1,36 @@
 """
 Database Layer: Auth, RBAC, Audit Log, & Task Assignment
 ============================================================
-SQLite lokal (persisten di server), bukan file-based session state.
-Cocok untuk deployment self-hosted (Proxmox/VPS) sesuai kebutuhan
-multi-user Analista Tools.
+PostgreSQL (via psycopg3), cocok untuk deployment Docker multi-container.
+Koneksi dibaca dari env var DATABASE_URL (docker-compose menyuntikkan ini
+otomatis, lihat docker-compose.yml). Fallback ke localhost utk dev lokal.
 
 Tabel:
-- users            : akun (username, password hash, role, aktif/tidak)
-- audit_log        : jejak aktivitas (siapa, apa, kapan, detail)
-- survey_questions : daftar pertanyaan survei + tipe + chart yang disarankan
+- users             : akun (username, password hash, role, aktif/tidak)
+- audit_log         : jejak aktivitas (siapa, apa, kapan, detail)
+- survey_questions  : daftar pertanyaan survei + tipe + chart yang disarankan
 - assignments       : penugasan pertanyaan ke user + kesimpulan tertulis
+- sessions          : token login persisten lintas refresh (cookie browser)
+- role_permissions  : RBAC dinamis, bisa diedit superadmin lewat UI
 
 Role hierarchy (dari tertinggi ke terendah):
-- superadmin : akses penuh, kelola semua user (termasuk admin), lihat semua
-               audit log, hapus/reset apa pun.
-- admin      : kelola user staff (bukan sesama admin/superadmin), assign
-               tugas, lihat audit log, kelola dataset & survey_questions.
-- staff      : hanya kerjakan tugas yang di-assign ke dirinya (isi
-               kesimpulan, lihat chart pertanyaannya sendiri), tidak bisa
-               kelola user atau lihat audit log user lain.
+- superadmin : akses penuh (wildcard permanen, TIDAK PERNAH dibatasi lewat
+               tabel role_permissions — safety net anti-lock-out).
+- admin      : izin diatur lewat role_permissions (default: kelola dataset,
+               analisis, assign tugas, kelola user staff, lihat audit log).
+- staff      : izin diatur lewat role_permissions (default: kerjakan
+               dataset & tugas milik sendiri saja).
 """
 
-import sqlite3
-import hashlib
+import os
 import secrets
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import bcrypt
-
-BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / "data" / "app.db"
+import psycopg
+from psycopg.rows import dict_row
 
 ROLES = ["superadmin", "admin", "staff"]
 
@@ -52,12 +50,18 @@ QUESTION_TYPE_TO_CHART = {
     "skip": "-",
 }
 
+SESSION_TTL_DAYS = 7
 
-def get_connection() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+
+def _database_url() -> str:
+    return os.environ.get(
+        "DATABASE_URL",
+        "postgresql://analista:analista@localhost:5432/analista_tools",
+    )
+
+
+def get_connection() -> psycopg.Connection:
+    conn = psycopg.connect(_database_url(), row_factory=dict_row, autocommit=False)
     return conn
 
 
@@ -68,6 +72,9 @@ def db_cursor():
         cur = conn.cursor()
         yield cur
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -77,12 +84,12 @@ def init_db() -> None:
     with db_cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 full_name TEXT NOT NULL,
                 role TEXT NOT NULL CHECK(role IN ('superadmin', 'admin', 'staff')),
-                active INTEGER NOT NULL DEFAULT 1,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at TEXT NOT NULL,
                 created_by TEXT,
                 last_login_at TEXT
@@ -91,7 +98,7 @@ def init_db() -> None:
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS audit_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 username TEXT NOT NULL,
                 role TEXT,
                 action TEXT NOT NULL,
@@ -102,7 +109,7 @@ def init_db() -> None:
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS survey_questions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 dataset_name TEXT NOT NULL,
                 column_name TEXT NOT NULL,
                 question_type TEXT,
@@ -115,7 +122,7 @@ def init_db() -> None:
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS assignments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 question_id INTEGER NOT NULL REFERENCES survey_questions(id) ON DELETE CASCADE,
                 assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 assigned_by TEXT,
@@ -126,6 +133,7 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             )
         """)
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 token TEXT PRIMARY KEY,
@@ -134,9 +142,31 @@ def init_db() -> None:
                 expires_at TEXT NOT NULL
             )
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS role_permissions (
+                role TEXT NOT NULL,
+                permission TEXT NOT NULL,
+                PRIMARY KEY (role, permission)
+            )
+        """)
+
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_log(username)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments(assigned_to)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+
+        # Seed default permission matrix HANYA kalau tabel masih kosong
+        # (first run) — supaya tidak menimpa perubahan yang sudah dibuat
+        # superadmin lewat UI pada run berikutnya.
+        cur.execute("SELECT COUNT(*) as c FROM role_permissions")
+        if cur.fetchone()["c"] == 0:
+            from utils.permissions import DEFAULT_PERMISSIONS
+            for role, perms in DEFAULT_PERMISSIONS.items():
+                for perm in perms:
+                    cur.execute(
+                        "INSERT INTO role_permissions (role, permission) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (role, perm),
+                    )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -171,7 +201,7 @@ def create_user(
     with db_cursor() as cur:
         cur.execute(
             """INSERT INTO users (username, password_hash, full_name, role, active, created_at, created_by)
-               VALUES (?, ?, ?, ?, 1, ?, ?)""",
+               VALUES (%s, %s, %s, %s, TRUE, %s, %s)""",
             (
                 username.strip().lower(),
                 hash_password(plain_password),
@@ -186,7 +216,7 @@ def create_user(
 
 def get_user_by_username(username: str) -> Optional[Dict]:
     with db_cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE username = ?", (username.strip().lower(),))
+        cur.execute("SELECT * FROM users WHERE username = %s", (username.strip().lower(),))
         row = cur.fetchone()
         return dict(row) if row else None
 
@@ -199,30 +229,30 @@ def list_users() -> List[Dict]:
 
 def update_user_active(user_id: int, active: bool) -> None:
     with db_cursor() as cur:
-        cur.execute("UPDATE users SET active = ? WHERE id = ?", (1 if active else 0, user_id))
+        cur.execute("UPDATE users SET active = %s WHERE id = %s", (active, user_id))
 
 
 def update_user_role(user_id: int, new_role: str) -> None:
     if new_role not in ROLES:
         raise ValueError(f"Role tidak valid: {new_role}")
     with db_cursor() as cur:
-        cur.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+        cur.execute("UPDATE users SET role = %s WHERE id = %s", (new_role, user_id))
 
 
 def reset_user_password(user_id: int, new_plain_password: str) -> None:
     with db_cursor() as cur:
-        cur.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(new_plain_password), user_id))
+        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(new_plain_password), user_id))
 
 
 def delete_user(user_id: int) -> None:
     with db_cursor() as cur:
-        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
 
 
 def touch_last_login(username: str) -> None:
     with db_cursor() as cur:
         cur.execute(
-            "UPDATE users SET last_login_at = ? WHERE username = ?",
+            "UPDATE users SET last_login_at = %s WHERE username = %s",
             (datetime.now(timezone.utc).isoformat(), username.strip().lower()),
         )
 
@@ -246,16 +276,13 @@ def authenticate(username: str, plain_password: str) -> Optional[Dict]:
 # login bertahan lintas refresh, token acak disimpan di COOKIE BROWSER
 # (bukan session_state) dan divalidasi balik ke tabel `sessions` di sini.
 
-SESSION_TTL_DAYS = 7
-
-
 def create_session_token(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc)
     expires = now.replace(microsecond=0) + timedelta(days=SESSION_TTL_DAYS)
     with db_cursor() as cur:
         cur.execute(
-            "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (%s, %s, %s, %s)",
             (token, user_id, now.isoformat(), expires.isoformat()),
         )
     return token
@@ -266,15 +293,15 @@ def get_user_by_session_token(token: str) -> Optional[Dict]:
     if not token:
         return None
     with db_cursor() as cur:
-        cur.execute("SELECT * FROM sessions WHERE token = ?", (token,))
+        cur.execute("SELECT * FROM sessions WHERE token = %s", (token,))
         session = cur.fetchone()
         if not session:
             return None
         expires_at = datetime.fromisoformat(session["expires_at"])
         if datetime.now(timezone.utc) > expires_at:
-            cur.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
             return None
-        cur.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],))
+        cur.execute("SELECT * FROM users WHERE id = %s", (session["user_id"],))
         user_row = cur.fetchone()
         if not user_row or not user_row["active"]:
             return None
@@ -283,13 +310,13 @@ def get_user_by_session_token(token: str) -> Optional[Dict]:
 
 def delete_session_token(token: str) -> None:
     with db_cursor() as cur:
-        cur.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
 
 
 def delete_all_sessions_for_user(user_id: int) -> None:
     """Force-logout semua sesi aktif milik satu user (mis. saat reset password)."""
     with db_cursor() as cur:
-        cur.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
 
 
 def can_manage_role(actor_role: str, target_role: str) -> bool:
@@ -303,7 +330,7 @@ def can_manage_role(actor_role: str, target_role: str) -> bool:
 def log_action(username: str, role: Optional[str], action: str, detail: str = "") -> None:
     with db_cursor() as cur:
         cur.execute(
-            "INSERT INTO audit_log (username, role, action, detail, timestamp) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO audit_log (username, role, action, detail, timestamp) VALUES (%s, %s, %s, %s, %s)",
             (username, role, action, detail, datetime.now(timezone.utc).isoformat()),
         )
 
@@ -312,11 +339,11 @@ def get_audit_log(limit: int = 200, username_filter: Optional[str] = None) -> Li
     with db_cursor() as cur:
         if username_filter:
             cur.execute(
-                "SELECT * FROM audit_log WHERE username = ? ORDER BY id DESC LIMIT ?",
+                "SELECT * FROM audit_log WHERE username = %s ORDER BY id DESC LIMIT %s",
                 (username_filter, limit),
             )
         else:
-            cur.execute("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,))
+            cur.execute("SELECT * FROM audit_log ORDER BY id DESC LIMIT %s", (limit,))
         return [dict(r) for r in cur.fetchall()]
 
 
@@ -335,10 +362,10 @@ def upsert_survey_questions(dataset_name: str, questions: List[Dict]) -> int:
             chart = QUESTION_TYPE_TO_CHART.get(q.get("question_type"), "-")
             cur.execute(
                 """INSERT INTO survey_questions (dataset_name, column_name, question_type, suggested_chart, category, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(dataset_name, column_name) DO UPDATE SET
-                       question_type = excluded.question_type,
-                       suggested_chart = excluded.suggested_chart""",
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (dataset_name, column_name) DO UPDATE SET
+                       question_type = EXCLUDED.question_type,
+                       suggested_chart = EXCLUDED.suggested_chart""",
                 (
                     dataset_name,
                     q["column_name"],
@@ -360,7 +387,7 @@ def list_survey_questions(dataset_name: str) -> List[Dict]:
                FROM survey_questions sq
                LEFT JOIN assignments a ON a.question_id = sq.id
                LEFT JOIN users u ON u.id = a.assigned_to
-               WHERE sq.dataset_name = ?
+               WHERE sq.dataset_name = %s
                ORDER BY sq.id""",
             (dataset_name,),
         )
@@ -369,18 +396,18 @@ def list_survey_questions(dataset_name: str) -> List[Dict]:
 
 def assign_question(question_id: int, user_id: Optional[int], assigned_by: str) -> None:
     with db_cursor() as cur:
-        cur.execute("SELECT id FROM assignments WHERE question_id = ?", (question_id,))
+        cur.execute("SELECT id FROM assignments WHERE question_id = %s", (question_id,))
         existing = cur.fetchone()
         now = datetime.now(timezone.utc).isoformat()
         if existing:
             cur.execute(
-                "UPDATE assignments SET assigned_to = ?, assigned_by = ?, updated_at = ? WHERE question_id = ?",
+                "UPDATE assignments SET assigned_to = %s, assigned_by = %s, updated_at = %s WHERE question_id = %s",
                 (user_id, assigned_by, now, question_id),
             )
         else:
             cur.execute(
                 """INSERT INTO assignments (question_id, assigned_to, assigned_by, status, created_at, updated_at)
-                   VALUES (?, ?, ?, 'belum_dikerjakan', ?, ?)""",
+                   VALUES (%s, %s, %s, 'belum_dikerjakan', %s, %s)""",
                 (question_id, user_id, assigned_by, now, now),
             )
 
@@ -388,7 +415,7 @@ def assign_question(question_id: int, user_id: Optional[int], assigned_by: str) 
 def update_assignment_progress(question_id: int, status: str, conclusion_text: Optional[str] = None) -> None:
     with db_cursor() as cur:
         cur.execute(
-            "UPDATE assignments SET status = ?, conclusion_text = COALESCE(?, conclusion_text), updated_at = ? WHERE question_id = ?",
+            "UPDATE assignments SET status = %s, conclusion_text = COALESCE(%s, conclusion_text), updated_at = %s WHERE question_id = %s",
             (status, conclusion_text, datetime.now(timezone.utc).isoformat(), question_id),
         )
 
@@ -399,8 +426,60 @@ def get_my_assignments(user_id: int) -> List[Dict]:
             """SELECT sq.*, a.id as assignment_id, a.status, a.conclusion_text, a.updated_at as assignment_updated_at
                FROM assignments a
                JOIN survey_questions sq ON sq.id = a.question_id
-               WHERE a.assigned_to = ?
+               WHERE a.assigned_to = %s
                ORDER BY sq.dataset_name, sq.id""",
             (user_id,),
         )
         return [dict(r) for r in cur.fetchall()]
+
+
+# ─────────────────────────────────────────────────────────────
+# ROLE PERMISSIONS (RBAC dinamis — bisa diedit superadmin lewat UI)
+# ─────────────────────────────────────────────────────────────
+# NOTE: role "superadmin" SENGAJA selalu wildcard penuh (tidak pernah
+# dibatasi lewat tabel ini) — safety net supaya superadmin tidak bisa
+# mengunci diri sendiri keluar dari sistem secara tidak sengaja.
+
+def get_permissions_for_role(role: str) -> set:
+    """Baca izin efektif satu role langsung dari database."""
+    with db_cursor() as cur:
+        cur.execute("SELECT permission FROM role_permissions WHERE role = %s", (role,))
+        return {r["permission"] for r in cur.fetchall()}
+
+
+def get_all_role_permissions() -> Dict[str, set]:
+    """Baca izin efektif SEMUA role dari database, dalam satu query."""
+    with db_cursor() as cur:
+        cur.execute("SELECT role, permission FROM role_permissions")
+        result: Dict[str, set] = {}
+        for r in cur.fetchall():
+            result.setdefault(r["role"], set()).add(r["permission"])
+        return result
+
+
+def set_role_permission(role: str, permission: str, granted: bool) -> None:
+    """Tambah atau cabut satu izin dari satu role."""
+    with db_cursor() as cur:
+        if granted:
+            cur.execute(
+                "INSERT INTO role_permissions (role, permission) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (role, permission),
+            )
+        else:
+            cur.execute(
+                "DELETE FROM role_permissions WHERE role = %s AND permission = %s",
+                (role, permission),
+            )
+
+
+def reset_role_permissions_to_default() -> None:
+    """Kembalikan seluruh permission matrix ke default bawaan aplikasi."""
+    from utils.permissions import DEFAULT_PERMISSIONS
+    with db_cursor() as cur:
+        cur.execute("DELETE FROM role_permissions")
+        for role, perms in DEFAULT_PERMISSIONS.items():
+            for perm in perms:
+                cur.execute(
+                    "INSERT INTO role_permissions (role, permission) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (role, perm),
+                )

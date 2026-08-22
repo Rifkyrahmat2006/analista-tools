@@ -190,6 +190,24 @@ def render_user_badge_sidebar() -> None:
     user = current_user()
     if not user:
         return
+
+    # Sembunyikan link halaman "Manajemen User" dari daftar navigasi
+    # sidebar kalau role user adalah staff (tidak punya izin mengelola
+    # user). Ini hanya menyembunyikan TAMPILAN — proteksi sesungguhnya
+    # tetap ada di require_role("superadmin","admin") di dalam halaman
+    # itu sendiri, jadi akses langsung lewat URL tetap diblokir.
+    if user["role"] == "staff":
+        st.markdown(
+            """
+            <style>
+                [data-testid="stSidebarNav"] a[href*="admin_users"] {
+                    display: none !important;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
     with st.sidebar:
         st.markdown("---")
         role_emoji = {"superadmin": ":material/shield_person:", "admin": ":material/admin_panel_settings:", "staff": ":material/person:"}

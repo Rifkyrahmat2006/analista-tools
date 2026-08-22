@@ -1,9 +1,14 @@
 """
-RBAC (Role-Based Access Control) — Permission Matrix Terpusat
+RBAC (Role-Based Access Control) — Permission Matrix Dinamis
 =================================================================
-Satu sumber kebenaran untuk "siapa boleh apa" di seluruh Analista Tools.
-Menggantikan pengecekan role ad-hoc (mis. `if role in (...)` yang
-tersebar di tiap halaman) dengan permission bernama yang jelas maknanya.
+Sumber kebenaran "siapa boleh apa" sekarang di DATABASE (tabel
+role_permissions), bukan hardcode Python — supaya superadmin bisa
+mengatur ulang izin tiap role langsung lewat UI (halaman Manajemen
+User > tab Permission Matrix), tanpa perlu edit kode / redeploy.
+
+DEFAULT_PERMISSIONS di file ini hanya dipakai sebagai:
+1. Seed awal saat tabel role_permissions masih kosong (first run)
+2. Fallback "Reset ke Default" di UI
 
 CARA PAKAI:
     from utils.permissions import require_permission, has_permission
@@ -16,11 +21,11 @@ CARA PAKAI:
         st.button("Assign ke anggota tim")
 
 PRINSIP:
-- superadmin: akses penuh ke semua permission (wildcard).
-- admin: kelola operasional (dataset, analisis, assign tugas, kelola
-  staff, lihat audit log) — TIDAK bisa kelola sesama admin/superadmin.
-- staff: kerjakan dataset & tugas milik sendiri — TIDAK bisa kelola user,
-  TIDAK bisa assign tugas ke orang lain, TIDAK bisa lihat audit log.
+- superadmin: SELALU wildcard penuh, TIDAK PERNAH dibatasi lewat tabel
+  role_permissions — ini safety net supaya superadmin tidak bisa
+  mengunci diri sendiri keluar dari sistem lewat kesalahan konfigurasi.
+- admin & staff: izinnya diatur bebas oleh superadmin lewat UI,
+  disimpan di database, dan langsung berlaku (tidak perlu redeploy).
 """
 
 import streamlit as st
@@ -28,11 +33,10 @@ import streamlit as st
 from utils.auth import require_login
 
 # ─────────────────────────────────────────────────────────────
-# PERMISSION MATRIX
+# DEFAULT PERMISSION MATRIX (seed awal + fallback reset)
 # ─────────────────────────────────────────────────────────────
-# Format: "domain.action" — domain = area fitur, action = operasi spesifik.
-PERMISSIONS = {
-    "superadmin": {"*"},  # wildcard: semua permission di bawah ini otomatis diizinkan
+DEFAULT_PERMISSIONS = {
+    "superadmin": {"*"},
     "admin": {
         "dataset.upload",
         "dataset.view",
@@ -41,9 +45,9 @@ PERMISSIONS = {
         "visualization.view",
         "visualization.export",
         "tasks.view",
-        "tasks.assign",          # assign pertanyaan ke anggota tim lain
-        "tasks.manage_own",      # isi kesimpulan/status tugas milik sendiri
-        "users.manage_staff",    # buat/hapus/reset password akun staff SAJA
+        "tasks.assign",
+        "tasks.manage_own",
+        "users.manage_staff",
         "audit.view",
     },
     "staff": {
@@ -74,23 +78,30 @@ PERMISSION_LABELS = {
     "audit.view": "Lihat audit log",
 }
 
-ALL_ROLES = list(PERMISSIONS.keys())
+# Permission yang BOLEH diatur ulang lewat UI (users.manage_all sengaja
+# dikecualikan — itu selalu implisit milik superadmin lewat wildcard).
+EDITABLE_PERMISSIONS = [p for p in PERMISSION_LABELS if p != "users.manage_all"]
+
+ALL_ROLES = ["superadmin", "admin", "staff"]
+EDITABLE_ROLES = ["admin", "staff"]  # superadmin tidak pernah diedit lewat UI
 
 
 def has_permission(role: str, permission: str) -> bool:
-    """Cek apakah suatu role punya izin atas permission tertentu."""
-    granted = PERMISSIONS.get(role, set())
-    if "*" in granted:
-        return True
-    return permission in granted
+    """Cek apakah suatu role punya izin atas permission tertentu (baca dari DB)."""
+    if role == "superadmin":
+        return True  # wildcard permanen, tidak pernah dibatasi DB
+
+    from utils.db import get_permissions_for_role
+    return permission in get_permissions_for_role(role)
 
 
 def get_role_permissions(role: str) -> set:
-    """Return set semua permission efektif untuk suatu role (wildcard di-expand)."""
-    granted = PERMISSIONS.get(role, set())
-    if "*" in granted:
-        return set(PERMISSION_LABELS.keys()) | {"users.manage_all"}
-    return granted
+    """Return set semua permission efektif untuk suatu role, dari database."""
+    if role == "superadmin":
+        return set(PERMISSION_LABELS.keys())  # termasuk users.manage_all
+
+    from utils.db import get_permissions_for_role
+    return get_permissions_for_role(role)
 
 
 def require_permission(permission: str) -> dict:

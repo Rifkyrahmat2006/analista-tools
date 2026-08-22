@@ -1,10 +1,23 @@
 # Deployment Guide — Analista Tools
 
+## Arsitektur
+
+3 container Docker (docker-compose.yml):
+- **postgres** — PostgreSQL 16, database utama (users, audit log, RBAC, task assignment, sessions)
+- **analista-tools** — aplikasi Streamlit
+- **cloudflared** — Cloudflare Tunnel, expose ke `amertools.rifkyprakoso.my.id`
+
 ## Menjalankan via Docker (Direkomendasikan untuk Server)
 
 ### Prasyarat
 - Docker & Docker Compose terpasang
-- Port 8501 bebas di localhost (default; tidak di-expose ke LAN/internet langsung)
+- File `.env` di root project berisi:
+  ```
+  POSTGRES_PASSWORD=<password acak kuat>
+  CF_TUNNEL_TOKEN=<token dari Cloudflare Tunnel>
+  ```
+  (`.env` sudah di-gitignore — JANGAN commit ke repo)
+- Port 8501 & 5432 bebas di localhost (default; tidak di-expose ke LAN/internet langsung)
 
 ### Build & Jalankan
 
@@ -13,10 +26,12 @@ docker compose up -d --build
 ```
 
 Ini akan:
-1. Build image dari `Dockerfile`
-2. Membuat volume Docker `analista_data` (persisten — survive container rebuild/redeploy)
-3. Menjalankan `scripts/seed_users.py` (idempotent — skip user yang sudah ada)
-4. Menjalankan Streamlit di `127.0.0.1:8501` (HANYA localhost, bukan `0.0.0.0`)
+1. Start Postgres, tunggu sampai `healthy` (healthcheck `pg_isready`)
+2. Build image `analista-tools` dari `Dockerfile`, baru start setelah Postgres healthy (`depends_on: condition: service_healthy`)
+3. Membuat volume `analista_pgdata` (data Postgres) & `analista_data` (dataset upload + cache) — keduanya persisten lintas rebuild/redeploy
+4. Menjalankan `scripts/seed_users.py` (idempotent — skip user yang sudah ada, dengan retry otomatis kalau Postgres belum siap terima koneksi)
+5. Menjalankan Streamlit di `127.0.0.1:8501` (HANYA localhost, bukan `0.0.0.0`)
+6. Start cloudflared, expose ke subdomain publik
 
 ### Melihat Password Akun Awal (Seed)
 
@@ -37,30 +52,46 @@ docker logs analista-tools 2>&1 | grep -A 10 "SEEDING"
 | reivan | staff | Reivan |
 | d | staff | D |
 
-**Hierarki hak akses:**
-- **superadmin**: kelola semua user (termasuk admin lain), lihat semua audit log, hapus/reset apa pun.
-- **admin**: kelola user staff (bukan sesama admin/superadmin), assign tugas analisis, lihat audit log, kelola dataset.
-- **staff**: hanya kerjakan tugas yang di-assign ke dirinya (isi kesimpulan analisis, lihat rekomendasi chart), tidak bisa kelola user.
+**Hierarki hak akses (RBAC dinamis):**
+- **superadmin**: akses penuh permanen (wildcard, tidak bisa dibatasi) — termasuk kelola semua user (termasuk admin lain), lihat semua audit log, **mengatur izin role admin & staff lewat UI** (halaman Manajemen User > tab Permission Matrix).
+- **admin**: izin default kelola dataset, analisis, assign tugas, kelola user staff, lihat audit log — bisa dikurangi/ditambah superadmin kapan saja lewat UI.
+- **staff**: izin default kerjakan dataset & tugas milik sendiri — bisa dikurangi/ditambah superadmin kapan saja lewat UI. Halaman "Manajemen User" otomatis tersembunyi dari sidebar untuk role ini.
+
+Permission matrix disimpan di tabel `role_permissions` (Postgres), bisa diedit real-time tanpa redeploy.
 
 ### Data Persisten
 
-Semua data (database SQLite `data/app.db`, dataset upload, cache) tersimpan di Docker volume `analista_data`, terpisah dari image container. Rebuild image (`docker compose up -d --build`) TIDAK menghapus data ini.
+- **Database** (users, audit log, RBAC, dataset upload, task assignment, sessions): volume `analista_pgdata`
+- **Dataset upload & cache**: volume `analista_data`
 
-Untuk backup manual:
+Keduanya terpisah dari image container. Rebuild image (`docker compose up -d --build`) TIDAK menghapus data ini.
+
+Untuk backup manual database:
 ```bash
-docker run --rm -v work_analista_analista_data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/analista_data_backup_$(date +%Y%m%d).tar.gz -C /data .
+docker exec analista-tools-db pg_dump -U analista analista_tools > backup_$(date +%Y%m%d).sql
+```
+
+Restore:
+```bash
+cat backup_YYYYMMDD.sql | docker exec -i analista-tools-db psql -U analista analista_tools
 ```
 
 ### Expose ke Internet (Subdomain)
 
-Container HANYA bind ke `127.0.0.1:8501` (aman, tidak exposed ke LAN/internet). Untuk akses via subdomain publik, gunakan Cloudflare Tunnel (`cloudflared`) — jangan ubah binding ke `0.0.0.0`.
+Container `analista-tools` HANYA bind ke `127.0.0.1:8501`, dan Postgres HANYA bind ke `127.0.0.1:5432` (aman, tidak exposed ke LAN/internet). Akses publik lewat Cloudflare Tunnel (`cloudflared`) ke `amertools.rifkyprakoso.my.id` — jangan ubah binding ke `0.0.0.0`.
+
+**PENTING**: `cloudflared` pakai `network_mode: "service:analista-tools"` (share network namespace). Kalau container `analista-tools` di-rebuild/recreate, WAJIB jalankan juga:
+```bash
+docker compose up -d --force-recreate cloudflared
+```
+atau tunnel akan kehilangan koneksi ("network is unreachable").
 
 ### Melihat Log & Status
 
 ```bash
 docker compose ps
 docker logs analista-tools --tail 100 -f
+docker logs analista-tools-db --tail 100 -f
 ```
 
 ### Menghentikan / Restart
@@ -70,3 +101,4 @@ docker compose down       # hentikan & hapus container (data tetap aman di volum
 docker compose up -d      # jalankan lagi (tanpa rebuild)
 docker compose restart    # restart cepat
 ```
+

@@ -164,35 +164,85 @@ with tab_rbac:
     st.markdown("### Permission Matrix (RBAC)")
     st.caption(
         "Sumber kebenaran untuk 'siapa boleh apa' di seluruh Analista Tools. "
-        "superadmin memiliki semua izin secara otomatis (wildcard)."
+        "superadmin memiliki semua izin secara permanen (wildcard) — tidak bisa diubah, "
+        "sebagai jaminan agar superadmin tidak pernah terkunci keluar dari sistemnya sendiri."
     )
 
-    all_permissions = sorted(PERMISSION_LABELS.keys())
-    matrix_rows = []
-    for perm in all_permissions:
-        row = {"Izin": PERMISSION_LABELS[perm], "Kode": perm}
-        for role in ALL_ROLES:
-            granted = perm in get_role_permissions(role)
-            row[role] = "✅ Ya" if granted else "❌ Tidak"
-        matrix_rows.append(row)
-    # users.manage_all khusus superadmin, tidak ada di PERMISSIONS dict staff/admin
-    matrix_rows.append({
-        "Izin": PERMISSION_LABELS["users.manage_all"],
-        "Kode": "users.manage_all",
-        "superadmin": "✅ Ya",
-        "admin": "❌ Tidak",
-        "staff": "❌ Tidak",
-    })
+    if user["role"] != "superadmin":
+        st.info(
+            ":material/visibility: Anda melihat matrix ini sebagai **read-only** "
+            "(hanya superadmin yang bisa mengubah izin role)."
+        )
 
-    matrix_df = pd.DataFrame(matrix_rows)
-    st.dataframe(matrix_df, use_container_width=True, height=450, hide_index=True)
+    from utils.db import set_role_permission, reset_role_permissions_to_default
+    from utils.permissions import EDITABLE_PERMISSIONS, EDITABLE_ROLES
+
+    current_matrix = get_role_permissions  # alias biar jelas
+    all_permissions = sorted(PERMISSION_LABELS.keys())
+
+    if user["role"] == "superadmin":
+        st.caption(":material/edit: Centang/hapus centang untuk mengubah izin. Perubahan langsung tersimpan ke database.")
+
+        header_cols = st.columns([3, 1, 1])
+        header_cols[0].markdown("**Izin**")
+        header_cols[1].markdown("**admin**")
+        header_cols[2].markdown("**staff**")
+
+        for perm in EDITABLE_PERMISSIONS:
+            row_cols = st.columns([3, 1, 1])
+            row_cols[0].markdown(f"{PERMISSION_LABELS[perm]}  \n`{perm}`")
+            for i, role in enumerate(EDITABLE_ROLES):
+                col = row_cols[i + 1]
+                with col:
+                    checked = perm in get_role_permissions(role)
+                    new_val = st.checkbox(
+                        "izin", value=checked, key=f"perm_{role}_{perm}", label_visibility="collapsed"
+                    )
+                    if new_val != checked:
+                        set_role_permission(role, perm, new_val)
+                        log_action(
+                            user["username"], user["role"], "update_role_permission",
+                            f"{role}.{perm} -> {'granted' if new_val else 'revoked'}",
+                        )
+                        st.rerun()
+
+        # Baris khusus: users.manage_all & superadmin — selalu tampil, tidak bisa diedit
+        st.markdown("---")
+        st.caption(f"🔒 `users.manage_all` — {PERMISSION_LABELS['users.manage_all']}: **hanya superadmin**, tidak bisa diubah.")
+        st.caption("🔒 Role `superadmin` selalu memiliki SEMUA izin (wildcard permanen), tidak muncul di tabel edit di atas.")
+
+        st.markdown("---")
+        if st.button(":material/restart_alt: Reset Semua Izin ke Default", key="reset_rbac_btn"):
+            reset_role_permissions_to_default()
+            log_action(user["username"], user["role"], "reset_role_permissions", "Reset RBAC ke default bawaan aplikasi")
+            st.success("Permission matrix berhasil direset ke default!")
+            st.rerun()
+
+    else:
+        # Tampilan read-only untuk admin
+        matrix_rows = []
+        for perm in all_permissions:
+            row = {"Izin": PERMISSION_LABELS[perm], "Kode": perm}
+            for role in ALL_ROLES:
+                granted = perm in get_role_permissions(role)
+                row[role] = "✅ Ya" if granted else "❌ Tidak"
+            matrix_rows.append(row)
+        matrix_rows.append({
+            "Izin": PERMISSION_LABELS["users.manage_all"],
+            "Kode": "users.manage_all",
+            "superadmin": "✅ Ya",
+            "admin": "❌ Tidak",
+            "staff": "❌ Tidak",
+        })
+        matrix_df = pd.DataFrame(matrix_rows)
+        st.dataframe(matrix_df, use_container_width=True, height=450, hide_index=True)
 
     st.markdown("---")
     st.markdown("#### Ringkasan Hierarki Role")
     st.markdown("""
-- **:material/shield_person: superadmin** — akses penuh ke semua fitur & semua akun (termasuk kelola sesama admin/superadmin), lihat semua audit log.
-- **:material/admin_panel_settings: admin** — operasional penuh (dataset, analisis, assign tugas), kelola akun **staff saja** (tidak bisa kelola admin/superadmin lain), lihat audit log.
-- **:material/person: staff** — kerjakan dataset & tugas yang di-assign ke dirinya, tidak bisa kelola user atau lihat audit log user lain.
+- **:material/shield_person: superadmin** — akses penuh ke semua fitur & semua akun (termasuk kelola sesama admin/superadmin), lihat semua audit log. Izinnya PERMANEN, tidak bisa dikurangi lewat matrix ini.
+- **:material/admin_panel_settings: admin** — izin diatur bebas oleh superadmin lewat matrix di atas (default: dataset, analisis, assign tugas, kelola akun staff, audit log).
+- **:material/person: staff** — izin diatur bebas oleh superadmin lewat matrix di atas (default: kerjakan dataset & tugas milik sendiri).
     """)
 
 render_sidebar_footer()
