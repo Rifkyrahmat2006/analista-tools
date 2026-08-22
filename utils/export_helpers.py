@@ -182,3 +182,78 @@ def export_oe_analysis(
 
     buf.seek(0)
     return buf.getvalue()
+
+def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title, solid_color=None, text_col=None):
+    """
+    Generate a static matplotlib chart based on the selected plot type for easy copy-pasting.
+    """
+    plt.rcParams["font.family"] = "sans-serif"
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    bg_color = "white"
+    text_color = "black"
+    fig.patch.set_facecolor(bg_color)
+    ax.set_facecolor(bg_color)
+    
+    # Pre-process labels
+    labels = df[val_col].astype(str).tolist()
+    plot_labels = labels
+    if text_col and text_col in df.columns:
+        plot_labels = []
+        for txt in df[text_col]:
+            if pd.isna(txt) or not txt:
+                plot_labels.append("")
+            else:
+                plot_labels.append(str(txt).replace("<b>", "").replace("</b>", "").replace("<br>", "\n"))
+
+    if chart_type in ["Bar Chart", "Horizontal Bar"]:
+        bar_colors = [solid_color] * len(df) if solid_color else colors
+        if chart_type == "Bar Chart":
+            bars = ax.bar(labels, df[count_col], color=bar_colors)
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=45, ha="right", color=text_color)
+            if text_col and text_col in df.columns:
+                for bar, txt in zip(bars, plot_labels):
+                    if txt:
+                        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + (df[count_col].max()*0.01), 
+                                txt, ha='center', va='bottom', fontsize=9, color=text_color)
+        else:
+            bars = ax.barh(labels, df[count_col], color=bar_colors)
+            if text_col and text_col in df.columns:
+                for bar, txt in zip(bars, plot_labels):
+                    if txt:
+                        txt_line = txt.replace("\n", " ")
+                        ax.text(bar.get_width() + (df[count_col].max()*0.01), bar.get_y() + bar.get_height()/2, 
+                                txt_line, ha='left', va='center', fontsize=9, color=text_color)
+    elif chart_type in ["Pie Chart", "Donut Chart"]:
+        wedgeprops = dict(width=0.4, edgecolor='w') if chart_type == "Donut Chart" else dict(edgecolor='w')
+        ax.pie(df[count_col], labels=plot_labels, colors=colors, wedgeprops=wedgeprops, textprops={'fontsize': 9, 'color': text_color})
+    elif chart_type == "Area Chart":
+        ax.fill_between(labels, df[count_col], color=colors[0] if colors else "#6366f1", alpha=0.6)
+        ax.plot(labels, df[count_col], color=colors[0] if colors else "#6366f1", linewidth=2)
+        ax.set_xticks(range(len(labels)))
+        ax.set_xticklabels(labels, rotation=45, ha="right", color=text_color)
+    elif chart_type == "Line Chart":
+        ax.plot(labels, df[count_col], color=colors[0] if colors else "#6366f1", marker='o', linewidth=2)
+        ax.set_xticks(range(len(labels)))
+        ax.set_xticklabels(labels, rotation=45, ha="right", color=text_color)
+    elif chart_type == "Treemap":
+        # Treemap fallback
+        bars = ax.barh(labels, df[count_col], color=colors)
+        ax.set_title(title + " (Fallback to Bar Chart)", fontsize=14, pad=20, color=text_color)
+        
+    if chart_type != "Treemap":
+        ax.set_title(title, fontsize=14, pad=20, color=text_color)
+        
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_color(text_color)
+    ax.spines['left'].set_color(text_color)
+    ax.tick_params(colors=text_color)
+    
+    plt.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return buf.getvalue()
+

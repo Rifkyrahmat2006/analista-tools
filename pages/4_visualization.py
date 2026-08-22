@@ -369,9 +369,13 @@ with tab_charts:
                 _margin = compute_dynamic_margin("Horizontal Bar", result[val_col].tolist())
             elif chart_type == "Pie Chart":
                 fig = px.pie(result, names=val_col, values=count_col, color_discrete_sequence=colors)
+                if "_text" in result.columns and result["_text"].notnull().any():
+                    fig.update_traces(text=result["_text"], textinfo="text")
                 _margin = compute_dynamic_margin("Pie Chart", result[val_col].tolist())
             elif chart_type == "Donut Chart":
                 fig = px.pie(result, names=val_col, values=count_col, color_discrete_sequence=colors, hole=0.45)
+                if "_text" in result.columns and result["_text"].notnull().any():
+                    fig.update_traces(text=result["_text"], textinfo="text")
                 _margin = compute_dynamic_margin("Donut Chart", result[val_col].tolist())
             elif chart_type == "Treemap":
                 fig = px.treemap(result, path=[val_col], values=count_col, color=count_col, color_continuous_scale=chart_theme)
@@ -394,15 +398,23 @@ with tab_charts:
                 use_container = chart_width == 0
                 st.plotly_chart(fig, use_container_width=use_container, config={"displaylogo": False}, theme=None if force_light_mode else "streamlit")
 
-                try:
-                    fig_exp = go.Figure(fig)
-                    fig_exp.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#1a1a2e"), width=1400)
-                    png = fig_exp.to_image(format="png", scale=2)
-                    render_copy_button(png, "Copy Chart PNG", key="copy_chart")
-                    with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
-                        st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
-                        st.image(png)
-                except: pass
+                if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key="btn_static_vis", help="Klik untuk membuat versi gambar statis dari grafik yang bisa di-copy paste."):
+                    st.info("💡 **Tips:** Klik kanan pada gambar grafik di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
+                    try:
+                        from utils.export_helpers import generate_matplotlib_chart
+                        png_bytes = generate_matplotlib_chart(
+                            chart_type=chart_type, 
+                            df=result, 
+                            val_col=val_col, 
+                            count_col=count_col, 
+                            colors=colors, 
+                            title=chart_title, 
+                            solid_color=solid_color if use_solid_color else None,
+                            text_col="_text" if "_text" in result.columns else None
+                        )
+                        st.image(png_bytes, caption=f"{chart_title} (Copyable PNG)")
+                    except Exception as e:
+                        st.error(f"Gagal mem-generate gambar statis. Error: {e}")
 
                 # ── Tabel Preview ──
                 st.markdown("---")
