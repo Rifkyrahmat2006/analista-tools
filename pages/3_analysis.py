@@ -1737,9 +1737,16 @@ with tab_thematic:
                 valid_count = (preprocessed_df_final["validation_status"] == "valid").sum() if preprocessed_df_final is not None else 0
                 st.caption(f"📊 Total respons valid: **{valid_count}** | Denominator untuk persentase: {valid_count}")
 
+                # ── COLOR THEME SELECTION ──
+                color_options = ["Purples", "Blues", "Greens", "Reds", "Oranges", "Plasma", "Viridis", "Inferno", "Magma", "Tealgrn"]
+                selected_color = st.selectbox("Pilih Tema Warna Bar Chart:", color_options, index=0)
+
                 # Distribution chart
                 with st.container():
-                    st.markdown("#### Distribusi Tema Final")
+                    st.markdown("#### Hasil Akhir (Grafik & Tabel)")
+                    
+                    tab_interactive, tab_copy = st.tabs(["📊 Interactive Chart & Table", "🖼️ Mode Copy to Word (Gambar Statis)"])
+                    
                     fig_final = px.bar(
                         summary_df,
                         y="Tema",
@@ -1747,7 +1754,7 @@ with tab_thematic:
                         orientation="h",
                         text="Persentase",
                         color="Jumlah",
-                        color_continuous_scale="Purples",
+                        color_continuous_scale=selected_color,
                         title="Distribusi Frekuensi Tema",
                     )
                     fig_final.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
@@ -1758,13 +1765,57 @@ with tab_thematic:
                     )
                     if force_light_mode:
                         fig_final.update_layout(**LIGHT_LAYOUT)
-                    st.plotly_chart(fig_final, use_container_width=True,
-                                    config={"toImageButtonOptions": {"filename": "theme_distribution", "scale": 2}},
-                                    theme=None if force_light_mode else "streamlit")
 
-                # Tabel ringkasan tema
-                st.markdown("#### Tabel Ringkasan Tema Final")
-                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                    with tab_interactive:
+                        st.plotly_chart(fig_final, use_container_width=True,
+                                        config={"toImageButtonOptions": {"filename": "theme_distribution", "scale": 2}},
+                                        theme=None if force_light_mode else "streamlit")
+
+                        # Tabel ringkasan tema
+                        st.markdown("#### Tabel Ringkasan Tema Final")
+                        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                        
+                    with tab_copy:
+                        st.info("💡 **Tips:** Klik kanan pada gambar grafik atau tabel di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
+                        try:
+                            # Render Chart as Image
+                            chart_bytes = fig_final.to_image(format="png", width=900, height=500, scale=2)
+                            st.image(chart_bytes, caption="Grafik Distribusi Tema (Copyable)")
+                            
+                            st.markdown("<br/>", unsafe_allow_html=True)
+                            
+                            # Render Table as Image using go.Table
+                            import plotly.graph_objects as go
+                            
+                            header_color = '#e2e8f0' if force_light_mode else '#334155'
+                            font_color_h = 'black' if force_light_mode else 'white'
+                            cell_color = 'white' if force_light_mode else '#1e293b'
+                            font_color_c = 'black' if force_light_mode else 'white'
+                            bg_color = 'white' if force_light_mode else '#0e1117'
+
+                            fig_table = go.Figure(data=[go.Table(
+                                header=dict(values=list(summary_df.columns),
+                                            fill_color=header_color,
+                                            font=dict(color=font_color_h, size=14),
+                                            align='left'),
+                                cells=dict(values=[summary_df[col] for col in summary_df.columns],
+                                           fill_color=cell_color,
+                                           font=dict(color=font_color_c, size=12),
+                                           align='left',
+                                           height=30)
+                            )])
+                            table_height = min(600, 100 + len(summary_df)*30)
+                            fig_table.update_layout(
+                                margin=dict(t=20, b=20, l=20, r=20), 
+                                height=table_height,
+                                paper_bgcolor=bg_color
+                            )
+                                
+                            table_bytes = fig_table.to_image(format="png", width=900, scale=2)
+                            st.image(table_bytes, caption="Tabel Ringkasan Tema (Copyable)")
+                            
+                        except Exception as e:
+                            st.error(f"Gagal membuat gambar statis. Pastikan package `kaleido` terinstall. Error detail: {e}")
 
             # Tabel pemetaan respons
             with st.expander(":material/table_chart: Tabel Pemetaan Respons Lengkap"):
