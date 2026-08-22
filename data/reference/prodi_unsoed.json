@@ -1,6 +1,6 @@
 {
   "source_url": "https://pendaftaran.admisi.unsoed.ac.id/apps/info/prodi-dan-daya-tampung",
-  "scraped_at": "2026-08-22T15:49:35.771862+00:00",
+  "scraped_at": "2026-08-22T16:07:06.060907+00:00",
   "total_records": 66,
   "data": [
     {
@@ -658,6 +658,7 @@
       "kategori_program": "Sarjana Kelas Internasional (S1)",
       "aliases": [
         "ekonomi pembangunan",
+        "ekonomi pembangunan internasional",
         "ekonomi pembangunan kelas internasional",
         "ep"
       ]
@@ -672,6 +673,7 @@
       "kategori_program": "Sarjana Kelas Internasional (S1)",
       "aliases": [
         "manajemen",
+        "manajemen internasional",
         "manajemen kelas internasional",
         "mnj"
       ]
@@ -687,6 +689,7 @@
       "aliases": [
         "akun",
         "akuntansi",
+        "akuntansi internasional",
         "akuntansi kelas internasional"
       ]
     },
@@ -700,6 +703,7 @@
       "kategori_program": "Sarjana Kelas Internasional (S1)",
       "aliases": [
         "hukum",
+        "hukum internasional",
         "hukum kelas internasional"
       ]
     },
@@ -714,6 +718,7 @@
       "aliases": [
         "hi",
         "hubungan internasional",
+        "hubungan internasional internasional",
         "hubungan internasional kelas internasional"
       ]
     },
@@ -728,6 +733,7 @@
       "aliases": [
         "kep",
         "keperawatan",
+        "keperawatan internasional",
         "keperawatan kelas internasional"
       ]
     },

@@ -184,10 +184,21 @@ def build_search_aliases(records: List[Dict]) -> List[Dict]:
         nama_lower = nama.lower()
         aliases = {nama_lower}
 
-        # versi tanpa embel-embel kelas internasional
+        # versi tanpa embel-embel kelas internasional (untuk match ke prodi
+        # reguler yang namanya sama tanpa embel2 kelas internasional)
         stripped = re.sub(r"\s*kelas internasional\s*", "", nama_lower).strip()
         if stripped:
             aliases.add(stripped)
+
+        # versi HANYA buang kata "kelas" tapi PERTAHANKAN "internasional" —
+        # supaya "Ekonomi Pembangunan Internasional" (tanpa kata "kelas")
+        # tetap match unik ke prodi Kelas Internasional, bukan tertimpa
+        # alias prodi reguler non-internasional yang namanya mirip.
+        if "kelas internasional" in nama_lower:
+            stripped_intl = nama_lower.replace("kelas internasional", "internasional").strip()
+            stripped_intl = re.sub(r"\s+", " ", stripped_intl)
+            if stripped_intl:
+                aliases.add(stripped_intl)
 
         # versi tanpa prefix generik ("ilmu", "bahasa", "pendidikan") supaya
         # jawaban singkat responden (mis. "Gizi", "Mandarin", "Kelautan")

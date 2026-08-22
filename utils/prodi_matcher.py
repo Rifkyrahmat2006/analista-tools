@@ -128,6 +128,36 @@ def match_prodi(
             rec = _pick_record(lookup[best[0]], jenjang_hint)
             return _format_result(rec, "fuzzy", best[1])
 
+    # 3. Keyword-containment match (fallback terakhir, HATI-HATI false positive):
+    # cek apakah input = alias resmi + kata filler generik saja, mis.
+    # "ahli gizi" -> alias "gizi" + filler "ahli" -> match ke "Ilmu Gizi".
+    # TIDAK dipakai kalau kata sisanya adalah disiplin ilmu lain (mis.
+    # "teknik kimia" TIDAK boleh match ke "Kimia" karena "teknik" bukan
+    # filler, itu penanda program studi berbeda yang mungkin tidak ada).
+    _FILLER_WORDS = {"ahli", "sarjana", "tenaga", "jurusan", "bidang", "ilmu", "program"}
+    input_words = set(norm_input.split())
+    keyword_candidates = []
+    for key in all_keys:
+        if len(key) < 4:
+            continue
+        key_words = key.split()
+        if len(key_words) == 1 and key in input_words:
+            leftover = input_words - set(key_words)
+            if leftover and not leftover.issubset(_FILLER_WORDS):
+                continue  # ada kata non-filler tersisa -> terlalu berisiko, skip
+            keyword_candidates.append(key)
+        elif len(key_words) > 1 and f" {key} " in f" {norm_input} ":
+            leftover = input_words - set(key_words)
+            if leftover and not leftover.issubset(_FILLER_WORDS):
+                continue
+            keyword_candidates.append(key)
+
+    if keyword_candidates:
+        # pilih alias terpanjang (paling spesifik) untuk menghindari ambiguitas
+        best_key = max(keyword_candidates, key=len)
+        rec = _pick_record(lookup[best_key], jenjang_hint)
+        return _format_result(rec, "keyword", 60)
+
     return _format_result(None, "none", 0, raw_text=text)
 
 
