@@ -13,7 +13,7 @@ from io import BytesIO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
-from utils.multi_select_analysis import multi_choice_analysis
+from utils.multi_select_analysis import multi_choice_analysis, get_multiple_choice_preview
 from utils.export_helpers import table_to_png
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
 from utils.theme import inject_theme_css, get_light_plotly_layout, render_sidebar_footer, render_page_footer
@@ -322,9 +322,35 @@ with tab_charts:
             result = single_choice_analysis(df, selected_col)
             val_col, count_col = "Value", "Count"
         elif data_type == "multiple_choice":
-            # Berikan opsi delimiter karena opsi jawaban mungkin mengandung koma
-            mc_delimiter = st.text_input("Karakter Pemisah (Delimiter)", value=",", help="Karakter yang memisahkan tiap jawaban dalam satu sel. Ganti menjadi ';' atau ', ' jika jawaban Anda sendiri mengandung koma.")
-            result = multi_choice_analysis(df, selected_col, delimiter=mc_delimiter)
+            # Delimiter dapat dikustomisasi jika jawaban sendiri mengandung koma
+            mc_delimiter = st.text_input(
+                "Karakter Pemisah (Delimiter)", value=",",
+                help="Karakter yang memisahkan tiap jawaban dalam satu sel. Ganti menjadi ';' jika jawaban Anda sendiri mengandung koma."
+            )
+
+            # ─ Deteksi otomatis opsi utama (seperti di tab Analysis) ─
+            # Ambil opsi yang muncul cukup sering sebagai 'main options'
+            # Semua jawaban di luar itu (termasuk isi 'Other:') akan digrup jadi 'Other'
+            mc_preview = get_multiple_choice_preview(df[selected_col], delimiter=mc_delimiter)
+            auto_main_options = mc_preview.get("main_names", [])
+
+            # Tampilkan info ke pengguna
+            with st.expander(":material/tune: Opsi Terdeteksi (klik untuk edit)", expanded=False):
+                st.caption("Opsi berikut terdeteksi sebagai pilihan utama. Semua jawaban di luar daftar ini akan digabung menjadi **Other**.")
+                # Biarkan user edit opsi utama kalau ada yang ingin ditambah/hapus
+                custom_main_str = st.text_area(
+                    "Opsi Utama (satu per baris)",
+                    value="\n".join(auto_main_options),
+                    height=150,
+                    key="mc_main_options_edit"
+                )
+                main_options_final = [o.strip() for o in custom_main_str.split("\n") if o.strip()]
+
+            result = multi_choice_analysis(
+                df, selected_col,
+                delimiter=mc_delimiter,
+                main_options=main_options_final if main_options_final else None
+            )
             val_col, count_col = "Value", "Count"
         elif data_type == "scale":
             result = scale_analysis(df, selected_col)

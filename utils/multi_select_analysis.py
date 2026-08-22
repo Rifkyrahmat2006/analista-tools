@@ -74,19 +74,36 @@ def extract_lainnya(df: pd.DataFrame, column: str, delimiter: str = ",") -> pd.D
     return df_clean
 
 
+import re as _re
+
+def _normalize_other(val: str) -> str:
+    """
+    Normalize Google Forms free-text "Other:" / "Lainnya:" responses to the
+    literal string "Other" so they consolidate as one group.
+    E.g. "Other: bla bla" → "Other"
+         "Lainnya: xyz"   → "Other"
+    """
+    m = _re.match(r"^(?:lainnya|other)\s*:\s*.*$", val.strip(), flags=_re.IGNORECASE)
+    return "Other" if m else val
+
+
 def multi_choice_analysis(df: pd.DataFrame, column: str, delimiter: str = ",", main_options: list = None) -> pd.DataFrame:
     """
     Analyze a multiple choice column.
-    Pipeline: split → explode → count frequency
+    Pipeline: split → normalize Others → explode → count frequency
     If main_options is provided, responses not in main_options are grouped as 'Other'.
     Returns a DataFrame with columns: [Value, Count, Percentage]
     """
     exploded = split_and_explode(df, column, delimiter)
-    
+
+    # Always normalize "Other: ..." / "Lainnya: ..." patterns first
+    exploded = exploded.apply(_normalize_other)
+
     if main_options is not None:
-        # Replace values not in main_options with 'Other'
-        exploded = exploded.apply(lambda x: x if x in main_options else "Other")
-        
+        # Normalize main_options entries too (in case they contain "Other: ..." labels)
+        normalized_main = {_normalize_other(o) for o in main_options}
+        exploded = exploded.apply(lambda x: x if x in normalized_main else "Other")
+
     counts = exploded.value_counts().reset_index()
     counts.columns = ["Value", "Count"]
     total_responses = df[column].dropna().shape[0]
