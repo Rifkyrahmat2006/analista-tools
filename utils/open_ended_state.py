@@ -967,7 +967,7 @@ def auto_merge_and_purge_candidate_groups(
     groups: dict,
     tfidf_matrix,
     resp_ids: list,
-    similarity_threshold: float = 0.35,
+    similarity_threshold: float = 0.65,
 ) -> Tuple[dict, list]:
     """
     Otomatis menggabungkan kelompok-kelompok yang sangat mirip (berdasarkan macro themes)
@@ -1025,7 +1025,9 @@ def auto_merge_and_purge_candidate_groups(
         repr_ids = groups[repr_gid].representative_response_ids
         
         # Kualitas kita recalculate atau ambil max
-        q_score, q_reason = "🟡 Needs Review", "Auto-merged group"
+        q_score, q_reason = "🟢 Good", "Auto-merged (High Similarity ≥ 0.65)"
+        if mc.get("is_single_group"):
+            q_score, q_reason = groups[repr_gid].quality_score, groups[repr_gid].quality_reason
         
         new_group = CandidateGroup(
             group_id=new_gid,

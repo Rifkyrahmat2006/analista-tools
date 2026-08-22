@@ -171,6 +171,35 @@ def safe_silhouette(matrix, labels, metric='cosine'):
     return 0.0
 
 
+def compute_per_cluster_silhouette(matrix, labels, metric='cosine') -> Dict[int, float]:
+    """
+    Hitung silhouette score per cluster dengan merata-ratakan skor sampel di masing-masing cluster.
+    Digunakan untuk mengidentifikasi cluster yang 'lemah' atau 'kuat'.
+    
+    Returns:
+        Dict: {cluster_id: float_score}
+    """
+    from sklearn.metrics import silhouette_samples
+    unique_labels = set(labels)
+    # Jika hanya 1 cluster, silhouette tidak bisa dihitung
+    if len(unique_labels) <= 1 or len(unique_labels) >= matrix.shape[0]:
+        return {label: 0.0 for label in set(labels)}
+        
+    try:
+        sample_silhouettes = silhouette_samples(matrix, labels, metric=metric)
+        cluster_scores = {}
+        for label in unique_labels:
+            if label == -1:  # Abaikan noise
+                continue
+            # Ambil skor untuk sample yang berada di cluster ini
+            cluster_mask = (labels == label)
+            avg_score = float(np.mean(sample_silhouettes[cluster_mask]))
+            cluster_scores[label] = avg_score
+        return cluster_scores
+    except Exception:
+        return {label: 0.0 for label in set(labels)}
+
+
 def safe_davies_bouldin(matrix, labels):
     """
     Safe calculation of Davies-Bouldin Index, returns None on error.

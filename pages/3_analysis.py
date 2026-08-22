@@ -745,47 +745,68 @@ with tab_thematic:
                             "Grafik ini menunjukkan **inertia** (total jarak dalam cluster) untuk setiap nilai K. "
                             "Pilih K di titik 'siku' grafik — di mana penurunan inertia mulai melambat secara signifikan."
                         )
-                        # Hanya hitung jika sudah ada TF-IDF matrix dari run sebelumnya
-                        elbow_matrix = st.session_state.get("oe_tfidf_matrix")
-                        if elbow_matrix is not None:
-                            try:
-                                from utils.nlp_clustering import compute_elbow_data, filter_zero_vectors
-                                import plotly.graph_objects as _go
-                                elbow_resp_ids = st.session_state.get("oe_resp_ids_for_clustering", [])
-                                elbow_mat_filtered, _, _ = filter_zero_vectors(elbow_matrix, elbow_resp_ids) if elbow_resp_ids else (elbow_matrix, [], [])
-                                k_max_elbow = min(15, max(2, elbow_mat_filtered.shape[0] - 1))
-                                elbow_data = compute_elbow_data(elbow_mat_filtered, k_max=k_max_elbow, random_state=42)
-                                if elbow_data:
-                                    ks = [d["k"] for d in elbow_data]
-                                    inertias = [d["inertia"] for d in elbow_data]
-                                    fig_elbow = _go.Figure()
-                                    fig_elbow.add_trace(_go.Scatter(
-                                        x=ks, y=inertias,
-                                        mode="lines+markers",
-                                        marker=dict(size=8, color="#667eea"),
-                                        line=dict(width=2, color="#667eea"),
-                                        name="Inertia"
-                                    ))
-                                    fig_elbow.add_vline(
-                                        x=custom_k, line_dash="dash", line_color="#f5576c",
-                                        annotation_text=f"K={custom_k} (dipilih)",
-                                        annotation_position="top right"
-                                    )
-                                    fig_elbow.update_layout(
-                                        xaxis_title="Jumlah Cluster (K)",
-                                        yaxis_title="Inertia (WCSS)",
-                                        height=300,
-                                        margin=dict(t=30, b=40, l=60, r=30),
-                                        showlegend=False
-                                    )
-                                    st.plotly_chart(fig_elbow, use_container_width=True, config={"displaylogo": False})
-                                    st.caption(":material/info: Garis merah = K yang Anda pilih saat ini. Idealnya berada di 'siku' grafik.")
+                        # Pre-Elbow Step Button
+                        if st.button("Hitung Rekomendasi K (Elbow)", key="oe_calc_elbow"):
+                            with st.spinner("Menghitung Elbow Method..."):
+                                from utils.open_ended_preprocessing import preprocess_pipeline, get_valid_texts_for_clustering
+                                from utils.nlp_clustering import get_tfidf_matrix_new, compute_elbow_data
+                                
+                                # Preprocess ringan
+                                temp_df = preprocess_pipeline(
+                                    validated_df_curr,
+                                    use_stemming=st.session_state.get("oe_use_stemming", True),
+                                    use_domain_stopwords=st.session_state.get("oe_use_domain_sw", True),
+                                    extra_stopwords={w.strip().lower() for w in st.session_state.get("oe_extra_sw", "").split(",") if w.strip()} if st.session_state.get("oe_extra_sw", "") else set(),
+                                )
+                                p_texts, p_ids = get_valid_texts_for_clustering(temp_df)
+                                
+                                if len(p_texts) > 5:
+                                    c_sw_list = [w.strip() for w in st.session_state.get("oe_context_sw", "").split(",") if w.strip()]
+                                    d_sw_set = DOMAIN_SURVEY_STOPWORDS if st.session_state.get("oe_use_domain_sw", True) else set()
+                                    d_sw_set = d_sw_set | ({w.strip().lower() for w in st.session_state.get("oe_extra_sw", "").split(",") if w.strip()} if st.session_state.get("oe_extra_sw", "") else set())
+                                    
+                                    t_mat, _ = get_tfidf_matrix_new(p_texts, max_features=1500, context_stopwords=c_sw_list, domain_stopwords=d_sw_set)
+                                    if t_mat is not None:
+                                        k_max_elbow = min(15, max(2, t_mat.shape[0] - 1))
+                                        elbow_data = compute_elbow_data(t_mat, k_max=k_max_elbow, random_state=42)
+                                        st.session_state["oe_temp_elbow_data"] = elbow_data
+                                        st.session_state["oe_temp_elbow_k"] = custom_k
+                                    else:
+                                        st.session_state["oe_temp_elbow_data"] = None
                                 else:
-                                    st.info("Data tidak cukup untuk menghitung Elbow Method.")
-                            except Exception as _e:
-                                st.caption(f"Elbow chart tidak tersedia: {_e}")
+                                    st.session_state["oe_temp_elbow_data"] = None
+
+                        # Tampilkan jika ada data
+                        elbow_data = st.session_state.get("oe_temp_elbow_data")
+                        if elbow_data:
+                            import plotly.graph_objects as _go
+                            ks = [d["k"] for d in elbow_data]
+                            inertias = [d["inertia"] for d in elbow_data]
+                            fig_elbow = _go.Figure()
+                            fig_elbow.add_trace(_go.Scatter(
+                                x=ks, y=inertias,
+                                mode="lines+markers",
+                                marker=dict(size=8, color="#667eea"),
+                                line=dict(width=2, color="#667eea"),
+                                name="Inertia"
+                            ))
+                            current_k_disp = st.session_state.get("oe_temp_elbow_k", custom_k)
+                            fig_elbow.add_vline(
+                                x=current_k_disp, line_dash="dash", line_color="#f5576c",
+                                annotation_text=f"K={current_k_disp} (dipilih)",
+                                annotation_position="top right"
+                            )
+                            fig_elbow.update_layout(
+                                xaxis_title="Jumlah Cluster (K)",
+                                yaxis_title="Inertia (WCSS)",
+                                height=300,
+                                margin=dict(t=30, b=40, l=60, r=30),
+                                showlegend=False
+                            )
+                            st.plotly_chart(fig_elbow, use_container_width=True, config={"displaylogo": False})
+                            st.caption(":material/info: Pilih K di sekitar 'siku' di mana garis mulai mendatar.")
                         else:
-                            st.info(":material/tips_and_updates: Jalankan analisis sekali terlebih dahulu agar Elbow chart dapat ditampilkan berdasarkan data asli Anda.")
+                            st.info(":material/tips_and_updates: Tekan 'Hitung Rekomendasi K' untuk melihat grafik panduan jumlah kelompok yang optimal.")
                 else:
                     custom_k = 10
 
@@ -1035,10 +1056,13 @@ with tab_thematic:
                                                 filtered_matrix, labels, valid_ids, n_reps=5, model=model
                                             )
 
+                                            # Hitung per-cluster silhouette
+                                            from utils.nlp_clustering import compute_per_cluster_silhouette
+                                            per_cluster_sil = compute_per_cluster_silhouette(filtered_matrix, labels, metric='cosine')
+
                                             # Buat candidate groups (note: labels and valid_ids length matches)
-                                            # We need to simulate cluster_metrics dict for backward compatibility
                                             cluster_metrics_dict = {
-                                                l: best_result["silhouette"] for l in set(labels) if l != -1
+                                                l: per_cluster_sil.get(l, 0.0) for l in set(labels) if l != -1
                                             }
 
                                             groups, order = create_candidate_groups_from_clustering(
@@ -1070,7 +1094,7 @@ with tab_thematic:
                                                 groups=groups,
                                                 tfidf_matrix=filtered_matrix,
                                                 resp_ids=valid_ids,
-                                                similarity_threshold=0.35
+                                                similarity_threshold=0.65
                                             )
 
                                             st.session_state["oe_candidate_groups"] = groups
@@ -1501,10 +1525,12 @@ with tab_thematic:
                 if group.quality_reason:
                     if "Low Quality" in group.quality_score or "Needs Review" in group.quality_score:
                         st.warning(group.quality_reason)
+                    elif "Auto-merged" in group.quality_reason:
+                        st.info(f":material/info: {group.quality_reason}")
                     else:
                         st.caption(group.quality_reason)
 
-                st.caption(f"**Status:** {group.status} | **Ukuran:** {group.size} respons")
+                st.caption(f"**Status:** {group.status} | **Ukuran:** {group.size} respons | **Silhouette Score:** {group.silhouette_score:.3f}")
 
                 # Header row metadata
                 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
