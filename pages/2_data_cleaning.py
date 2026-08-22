@@ -433,7 +433,7 @@ with tab_prodi:
 
             if st.button(":material/save: Terapkan sebagai Kolom Baru", type="primary", key="apply_prodi_std"):
                 new_df = df.copy()
-                new_df[f"{prodi_col}_std"] = result_df["nama_prodi_std"].values
+                new_df[f"{prodi_col}_std"] = result_df["nama_prodi_display"].values
                 new_df[f"{prodi_col}_kode"] = result_df["kode_prodi"].values
                 new_df[f"{prodi_col}_fakultas"] = result_df["fakultas"].values
                 apply_change(
@@ -442,10 +442,39 @@ with tab_prodi:
                     f"({n_matched}/{n_total} cocok)",
                 )
                 st.success(
-                    f":material/check_circle: Ditambahkan kolom `{prodi_col}_std`, "
-                    f"`{prodi_col}_kode`, `{prodi_col}_fakultas`!"
+                    f":material/check_circle: Ditambahkan kolom `{prodi_col}_std` "
+                    f"(format \"S1/D3 Nama Prodi\"), `{prodi_col}_kode`, `{prodi_col}_fakultas`!"
                 )
                 st.rerun()
+
+            st.markdown("---")
+            st.markdown("#### :material/bar_chart: Visualisasi Sebaran Jurusan")
+            st.caption('Label memakai format "S1/D3 Nama Prodi" agar prodi yang sama namanya tapi beda jenjang tetap terbedakan.')
+
+            import plotly.express as px
+
+            chart_df = result_df[result_df["nama_prodi_display"].notna()]
+            if chart_df.empty:
+                st.info("Belum ada data yang berhasil dicocokkan untuk divisualisasikan.")
+            else:
+                top_n = st.slider("Tampilkan berapa jurusan teratas", 5, 50, 20, key="prodi_chart_topn")
+                counts = (
+                    chart_df["nama_prodi_display"]
+                    .value_counts()
+                    .head(top_n)
+                    .rename_axis("Jurusan")
+                    .reset_index(name="Jumlah")
+                )
+                fig = px.bar(
+                    counts.sort_values("Jumlah"),
+                    x="Jumlah",
+                    y="Jurusan",
+                    orientation="h",
+                    text="Jumlah",
+                    title=f"Top {min(top_n, len(counts))} Jurusan Responden",
+                )
+                fig.update_layout(height=max(400, 24 * len(counts)), yaxis_title="", xaxis_title="Jumlah Responden")
+                st.plotly_chart(fig, use_container_width=True)
 
 with tab_validation:
     st.markdown("### Validasi Responden")

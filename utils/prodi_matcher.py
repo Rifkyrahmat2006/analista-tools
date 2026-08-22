@@ -217,7 +217,12 @@ def detect_prodi_column(series: pd.Series, sample_size: int = 50, min_match_rati
 def normalize_prodi_column(series: pd.Series, fuzzy_threshold: int = 80) -> pd.DataFrame:
     """
     Terapkan match_prodi ke seluruh kolom, return DataFrame hasil dengan
-    kolom tambahan: nama_prodi_std, kode_prodi, fakultas, match_type, confidence.
+    kolom tambahan: nama_prodi_std, nama_prodi_display, kode_prodi,
+    fakultas, jenjang, match_type, confidence.
+
+    nama_prodi_display berformat "S1/D3 Nama Prodi" (mis. "S1 Kimia",
+    "D3 Akuntansi") — cocok dipakai langsung sebagai label chart/visualisasi
+    karena tetap membedakan prodi yang sama namanya tapi beda jenjang.
 
     Cocok dipakai di pages/2_data_cleaning.py untuk standarisasi kolom
     "Jurusan/Prodi asal" pada survei.
@@ -231,4 +236,15 @@ def normalize_prodi_column(series: pd.Series, fuzzy_threshold: int = 80) -> pd.D
 
     result_df = pd.DataFrame(results)
     result_df.rename(columns={"nama_prodi": "nama_prodi_std"}, inplace=True)
+
+    def _make_display(row) -> Optional[str]:
+        nama = row.get("nama_prodi_std")
+        jenjang = row.get("jenjang")
+        if not nama or pd.isna(nama):
+            return None
+        if not jenjang or pd.isna(jenjang):
+            return nama
+        return f"{jenjang} {nama}"
+
+    result_df["nama_prodi_display"] = result_df.apply(_make_display, axis=1)
     return result_df
