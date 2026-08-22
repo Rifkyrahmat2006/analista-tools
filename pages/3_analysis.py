@@ -752,6 +752,7 @@ with tab_thematic:
                                 from utils.nlp_clustering import get_tfidf_matrix, compute_elbow_data
                                 
                                 # Preprocess ringan
+                                validated_df_curr = st.session_state.get("oe_validated_df")
                                 temp_df = preprocess_pipeline(
                                     validated_df_curr,
                                     use_stemming=st.session_state.get("oe_use_stemming", True),
