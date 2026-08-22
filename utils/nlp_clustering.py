@@ -171,6 +171,24 @@ def safe_silhouette(matrix, labels, metric='cosine'):
     return 0.0
 
 
+def safe_davies_bouldin(matrix, labels):
+    """
+    Safe calculation of Davies-Bouldin Index, returns None on error.
+    DB index uses euclidean distance internally (sklearn default).
+    For sparse TF-IDF matrices we convert to dense first.
+    Lower is better; 0 is perfect separation.
+    """
+    unique_labels = set(labels)
+    if len(unique_labels) < 2 or len(unique_labels) >= matrix.shape[0]:
+        return None
+    try:
+        # Convert sparse to dense if needed (DB score needs dense array)
+        dense = matrix.toarray() if sp.issparse(matrix) else np.asarray(matrix)
+        return float(davies_bouldin_score(dense, labels))
+    except Exception:
+        return None
+
+
 def get_recommended_k(evaluation_results: List[Dict]) -> int:
     """
     Beri rekomendasi k berdasarkan gabungan Silhouette dan Davies-Bouldin.

@@ -900,7 +900,7 @@ with tab_thematic:
                                             st.session_state["oe_last_params_hash"] = current_hash
                                             st.rerun()
                                         elif clustering_mode == "K-Means (Custom K)":
-                                            from utils.nlp_clustering import run_kmeans, filter_zero_vectors, safe_silhouette
+                                            from utils.nlp_clustering import run_kmeans, filter_zero_vectors, safe_silhouette, safe_davies_bouldin
                                             filtered_matrix, valid_ids, zero_ids = filter_zero_vectors(tfidf_matrix, resp_ids)
                                             
                                             if filtered_matrix.shape[0] < custom_k:
@@ -909,6 +909,18 @@ with tab_thematic:
                                                 
                                             km_model, labels = run_kmeans(filtered_matrix, k=custom_k, random_state=random_state)
                                             sil = safe_silhouette(filtered_matrix, labels, metric='cosine')
+                                            db  = safe_davies_bouldin(filtered_matrix, labels)
+
+                                            # Composite score: normalisasi sederhana berdasarkan silhouette
+                                            # Silhouette range [-1, 1] → [0, 1]; DB tidak dinormalisasi karena range tak terbatas
+                                            # Composite = (sil_norm * 0.7) + (db_norm * 0.3) tapi DB opsional
+                                            sil_norm = max(0.0, (sil + 1) / 2)  # [-1,1] → [0,1]
+                                            if db is not None and db > 0:
+                                                # DB: lebih kecil lebih baik → invert ke [0,1] via 1/(1+db)
+                                                db_norm = 1.0 / (1.0 + db)
+                                                composite = round(sil_norm * 0.7 + db_norm * 0.3, 4)
+                                            else:
+                                                composite = round(sil_norm, 4)
                                             
                                             best_result = {
                                                 "method_name": f"K-Means (K={custom_k})",
@@ -919,12 +931,12 @@ with tab_thematic:
                                                 "zero_ids": zero_ids,
                                                 "silhouette": sil,
                                                 "n_clusters": custom_k,
-                                                "composite_score": 1.0,
+                                                "composite_score": composite,
                                                 "benchmark_report": [{
                                                     "method_name": f"K-Means (K={custom_k})",
-                                                    "silhouette": sil,
-                                                    "davies_bouldin": 0,
-                                                    "composite_score": 1.0,
+                                                    "silhouette": round(sil, 4),
+                                                    "davies_bouldin": round(db, 4) if db is not None else "N/A",
+                                                    "composite_score": composite,
                                                     "n_clusters": custom_k,
                                                     "n_noise": 0
                                                 }]
