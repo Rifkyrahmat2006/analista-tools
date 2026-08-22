@@ -1703,22 +1703,57 @@ with tab_thematic:
                 valid_count = std_result["total_valid"]
                 st.caption(f"📊 Total respons valid: **{valid_count}** | Metode ekstraksi: {concept_res.get('mode', 'dictionary')} | Coverage: {concept_res.get('coverage_pct', 0)}%")
                 
+                # ── COLOR THEME SELECTION ──
+                color_options = [
+                    "Solid Indigo", "Solid Emerald", "Solid Rose", "Solid Slate",
+                    "Purples (Gradient)", "Blues (Gradient)", "Greens (Gradient)", 
+                    "Reds (Gradient)", "Oranges (Gradient)", "Plasma (Gradient)", 
+                    "Viridis (Gradient)"
+                ]
+                selected_color = st.selectbox(f"Pilih Tema Warna Bar Chart ({std_result['item_label']}):", color_options, index=0)
+                
+                # Buat label hybrid
+                summary_df["LabelText"] = summary_df.apply(lambda row: f"{row['Jumlah Respons']} ({row['% Responden']:.1f}%)", axis=1)
+
                 with st.container():
                     st.markdown(f"#### Distribusi {std_result['item_label']}")
-                    fig_final = px.bar(
-                        summary_df,
-                        y=std_result['item_label'],
-                        x="Jumlah Respons",
-                        orientation="h",
-                        text="% Responden",
-                        color="Jumlah Respons",
-                        color_continuous_scale="Purples",
-                        title=f"Distribusi {std_result['top_label']}",
-                    )
-                    fig_final.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+                    
+                    is_solid = selected_color.startswith("Solid")
+                    solid_colors = {
+                        "Solid Indigo": "#4f46e5",
+                        "Solid Emerald": "#10b981",
+                        "Solid Rose": "#f43f5e",
+                        "Solid Slate": "#64748b"
+                    }
+                    
+                    if is_solid:
+                        color_hex = solid_colors.get(selected_color, "#4f46e5")
+                        fig_final = px.bar(
+                            summary_df,
+                            y=std_result['item_label'],
+                            x="Jumlah Respons",
+                            orientation="h",
+                            text="LabelText",
+                            title=f"Distribusi {std_result['top_label']}",
+                        )
+                        fig_final.update_traces(marker_color=color_hex)
+                    else:
+                        grad_name = selected_color.replace(" (Gradient)", "")
+                        fig_final = px.bar(
+                            summary_df,
+                            y=std_result['item_label'],
+                            x="Jumlah Respons",
+                            orientation="h",
+                            text="LabelText",
+                            color="Jumlah Respons",
+                            color_continuous_scale=grad_name,
+                            title=f"Distribusi {std_result['top_label']}",
+                        )
+                        fig_final.update_layout(coloraxis_showscale=False)
+                        
+                    fig_final.update_traces(textposition="outside")
                     fig_final.update_layout(
                         yaxis={"categoryorder": "total ascending"},
-                        coloraxis_showscale=False,
                         margin=dict(t=50, b=20, l=20, r=80),
                     )
                     if force_light_mode:
@@ -1726,6 +1761,52 @@ with tab_thematic:
                     st.plotly_chart(fig_final, use_container_width=True,
                                     config={"toImageButtonOptions": {"filename": f"{current_mode}_distribution", "scale": 2}},
                                     theme=None if force_light_mode else "streamlit")
+
+                    if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key="btn_static_concept", help="Klik untuk membuat versi gambar statis dari grafik yang bisa di-copy paste."):
+                        st.info("💡 **Tips:** Klik kanan pada gambar grafik di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
+                        try:
+                            import matplotlib.pyplot as plt
+                            import io
+                            
+                            fig, ax = plt.subplots(figsize=(10, 6))
+                            df_sorted = summary_df.sort_values("Jumlah Respons", ascending=True)
+                            
+                            if is_solid:
+                                bar_color = solid_colors.get(selected_color, "#4f46e5")
+                            else:
+                                bar_color = "#6366f1" if force_light_mode else "#818cf8"
+                                
+                            bg_color = "white" if force_light_mode else "#0e1117"
+                            text_color = "black" if force_light_mode else "white"
+                            
+                            fig.patch.set_facecolor(bg_color)
+                            ax.set_facecolor(bg_color)
+                            
+                            bars = ax.barh(df_sorted[std_result['item_label']], df_sorted["Jumlah Respons"], color=bar_color)
+                            
+                            for bar, lbl in zip(bars, df_sorted["LabelText"]):
+                                ax.text(bar.get_width() + (df_sorted["Jumlah Respons"].max()*0.01), bar.get_y() + bar.get_height()/2, 
+                                        lbl, va='center', ha='left', fontsize=10, color=text_color)
+                                        
+                            ax.set_title(f"Distribusi {std_result['top_label']}", fontsize=14, pad=20, color=text_color)
+                            ax.set_xlabel("Jumlah Respons", fontsize=12, color=text_color)
+                            ax.tick_params(colors=text_color)
+                            
+                            ax.spines['top'].set_visible(False)
+                            ax.spines['right'].set_visible(False)
+                            ax.spines['bottom'].set_color(text_color)
+                            ax.spines['left'].set_color(text_color)
+                            
+                            plt.tight_layout()
+                            
+                            buf = io.BytesIO()
+                            fig.savefig(buf, format="png", dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor())
+                            buf.seek(0)
+                            
+                            st.image(buf, caption=f"Grafik Distribusi {std_result['top_label']} (Copyable PNG)")
+                            plt.close(fig)
+                        except Exception as e:
+                            st.error(f"Gagal mem-generate gambar statis lewat Matplotlib. Error: {e}")
                 
                 coocc_df = get_cooccurrence_df(concept_res)
                 
