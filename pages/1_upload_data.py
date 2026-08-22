@@ -8,10 +8,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_file, save_dataset, list_saved_datasets, load_saved_dataset
 from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
+from utils.auth import require_login, render_user_badge_sidebar
 
 st.set_page_config(page_title="Upload Data", layout="wide")
 
 inject_theme_css()
+
+require_login()
+render_user_badge_sidebar()
 
 st.markdown("# :material/upload: Upload Data")
 st.markdown("Upload dataset survei dari file **CSV** atau **Excel** (.xlsx/.xls)")

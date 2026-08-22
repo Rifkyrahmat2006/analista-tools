@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
+from utils.auth import require_login, render_user_badge_sidebar
 
 st.set_page_config(
     page_title="Analista Tools",
@@ -13,6 +14,9 @@ st.set_page_config(
 )
 
 inject_theme_css()
+
+current_user = require_login()
+render_user_badge_sidebar()
 
 # --------------- Hero Section ---------------
 st.markdown("""

@@ -17,10 +17,14 @@ from utils.multi_select_analysis import multi_choice_analysis, get_multiple_choi
 from utils.export_helpers import table_to_png
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
 from utils.theme import inject_theme_css, get_light_plotly_layout, render_sidebar_footer, render_page_footer
+from utils.auth import require_login, render_user_badge_sidebar
 
 st.set_page_config(page_title="Visualization", layout="wide")
 
 inject_theme_css()
+
+require_login()
+render_user_badge_sidebar()
 
 PLOTLY_COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe",
                  "#43e97b", "#fa709a", "#fee140", "#a18cd1"]

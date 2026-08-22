@@ -1,0 +1,20 @@
+services:
+  analista-tools:
+    build: .
+    image: analista-tools:latest
+    container_name: analista-tools
+    restart: unless-stopped
+    ports:
+      # Bind ke localhost saja — akses eksternal via reverse proxy / Tailscale
+      # Serve, jangan expose port 8501 langsung ke 0.0.0.0/LAN.
+      - "127.0.0.1:8501:8501"
+    volumes:
+      # Volume persisten: database (users, audit log, assignments), dataset
+      # yang diupload, dan cache. Data ini HARUS selamat lintas rebuild image.
+      - analista_data:/app/data
+    environment:
+      - TZ=Asia/Jakarta
+
+volumes:
+  analista_data:
+    driver: local
