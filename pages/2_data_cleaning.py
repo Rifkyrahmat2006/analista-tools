@@ -402,6 +402,20 @@ with tab_prodi:
         if "prodi_match_result" in st.session_state:
             result_df = st.session_state["prodi_match_result"]
 
+            # Guard: kalau session_state menyimpan hasil dari versi kode lama
+            # (mis. sebelum kolom nama_prodi_display ditambahkan) atau dari
+            # kolom sumber yang beda, buang cache basi ini dan minta user
+            # klik ulang "Deteksi & Cocokkan" alih-alih crash KeyError.
+            required_cols = {"match_type", "nama_prodi_display", "kode_prodi", "fakultas"}
+            if not required_cols.issubset(set(result_df.columns)) or len(result_df) != len(df):
+                del st.session_state["prodi_match_result"]
+                st.warning(
+                    ":material/refresh: Hasil deteksi sebelumnya tidak lagi valid "
+                    "(kemungkinan aplikasi baru saja diperbarui). Silakan klik "
+                    "**Deteksi & Cocokkan** lagi."
+                )
+                st.stop()
+
             n_total = len(result_df)
             n_matched = (result_df["match_type"].isin(["exact", "fuzzy", "keyword"])).sum()
             n_exact = (result_df["match_type"] == "exact").sum()
