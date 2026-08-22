@@ -1,0 +1,848 @@
+{
+  "source_url": "https://pendaftaran.admisi.unsoed.ac.id/apps/info/prodi-dan-daya-tampung",
+  "scraped_at": "2026-08-22T15:34:38.828790+00:00",
+  "total_records": 66,
+  "data": [
+    {
+      "no": "1",
+      "kode_prodi": "41201",
+      "nama_prodi": "Teknik Pertanian",
+      "jenjang": "S1",
+      "fakultas": "Pertanian",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik pertanian"
+      ]
+    },
+    {
+      "no": "2",
+      "kode_prodi": "41203",
+      "nama_prodi": "Teknologi Pangan",
+      "jenjang": "S1",
+      "fakultas": "Pertanian",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknologi pangan"
+      ]
+    },
+    {
+      "no": "3",
+      "kode_prodi": "54201",
+      "nama_prodi": "Agribisnis",
+      "jenjang": "S1",
+      "fakultas": "Pertanian",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "agb",
+        "agribisnis"
+      ]
+    },
+    {
+      "no": "4",
+      "kode_prodi": "54211",
+      "nama_prodi": "Agroteknologi",
+      "jenjang": "S1",
+      "fakultas": "Pertanian",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "agroteknologi",
+        "agtek"
+      ]
+    },
+    {
+      "no": "5",
+      "kode_prodi": "54295",
+      "nama_prodi": "Proteksi Tanaman",
+      "jenjang": "S1",
+      "fakultas": "Pertanian",
+      "akreditasi": "Terakreditasi Sementara",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "proteksi tanaman"
+      ]
+    },
+    {
+      "no": "6",
+      "kode_prodi": "46201",
+      "nama_prodi": "Biologi",
+      "jenjang": "S1",
+      "fakultas": "Biologi",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "bio",
+        "biologi"
+      ]
+    },
+    {
+      "no": "7",
+      "kode_prodi": "46202",
+      "nama_prodi": "Mikrobiologi",
+      "jenjang": "S1",
+      "fakultas": "Biologi",
+      "akreditasi": "Baik",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "bio",
+        "biologi",
+        "mikrobiologi"
+      ]
+    },
+    {
+      "no": "8",
+      "kode_prodi": "46204",
+      "nama_prodi": "Biologi Terapan",
+      "jenjang": "S1",
+      "fakultas": "Biologi",
+      "akreditasi": "Terakreditasi Sementara",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "bio",
+        "biologi",
+        "biologi terapan"
+      ]
+    },
+    {
+      "no": "9",
+      "kode_prodi": "60201",
+      "nama_prodi": "Ekonomi Pembangunan",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ekonomi pembangunan",
+        "ep"
+      ]
+    },
+    {
+      "no": "10",
+      "kode_prodi": "61201",
+      "nama_prodi": "Manajemen",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "manajemen",
+        "mnj"
+      ]
+    },
+    {
+      "no": "11",
+      "kode_prodi": "62201",
+      "nama_prodi": "Akuntansi",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "akun",
+        "akuntansi"
+      ]
+    },
+    {
+      "no": "12",
+      "kode_prodi": "87202",
+      "nama_prodi": "Pendidikan Ekonomi",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "B",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan ekonomi"
+      ]
+    },
+    {
+      "no": "13",
+      "kode_prodi": "54231",
+      "nama_prodi": "Peternakan",
+      "jenjang": "S1",
+      "fakultas": "Peternakan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "fapet",
+        "peternakan"
+      ]
+    },
+    {
+      "no": "14",
+      "kode_prodi": "74201",
+      "nama_prodi": "Hukum",
+      "jenjang": "S1",
+      "fakultas": "Hukum",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "hukum",
+        "ilmu hukum"
+      ]
+    },
+    {
+      "no": "15",
+      "kode_prodi": "63201",
+      "nama_prodi": "Administrasi Publik",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "administrasi publik",
+        "ap"
+      ]
+    },
+    {
+      "no": "16",
+      "kode_prodi": "67201",
+      "nama_prodi": "Ilmu Politik",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ilmu politik"
+      ]
+    },
+    {
+      "no": "17",
+      "kode_prodi": "69201",
+      "nama_prodi": "Sosiologi",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "sosiologi"
+      ]
+    },
+    {
+      "no": "18",
+      "kode_prodi": "70201",
+      "nama_prodi": "Ilmu Komunikasi",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ikom",
+        "ilmu komunikasi",
+        "komunikasi"
+      ]
+    },
+    {
+      "no": "19",
+      "kode_prodi": "64201",
+      "nama_prodi": "Hubungan Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "hi",
+        "hubungan internasional"
+      ]
+    },
+    {
+      "no": "20",
+      "kode_prodi": "11201",
+      "nama_prodi": "Pendidikan Dokter",
+      "jenjang": "S1",
+      "fakultas": "Kedokteran",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan dokter"
+      ]
+    },
+    {
+      "no": "21",
+      "kode_prodi": "12201",
+      "nama_prodi": "Kedokteran Gigi",
+      "jenjang": "S1",
+      "fakultas": "Kedokteran",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "fk",
+        "fkg",
+        "kedokteran",
+        "kedokteran gigi"
+      ]
+    },
+    {
+      "no": "22",
+      "kode_prodi": "20201",
+      "nama_prodi": "Teknik Elektro",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "elektro",
+        "teknik elektro"
+      ]
+    },
+    {
+      "no": "23",
+      "kode_prodi": "21201",
+      "nama_prodi": "Teknik Mesin",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Baik",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik mesin"
+      ]
+    },
+    {
+      "no": "24",
+      "kode_prodi": "22201",
+      "nama_prodi": "Teknik Sipil",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "sipil",
+        "teknik sipil"
+      ]
+    },
+    {
+      "no": "25",
+      "kode_prodi": "26201",
+      "nama_prodi": "Teknik Industri",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Baik Sekali",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik industri"
+      ]
+    },
+    {
+      "no": "26",
+      "kode_prodi": "34201",
+      "nama_prodi": "Teknik Geologi",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Baik Sekali",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik geologi"
+      ]
+    },
+    {
+      "no": "27",
+      "kode_prodi": "55201",
+      "nama_prodi": "Informatika",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "if",
+        "informatika",
+        "teknik informatika",
+        "ti"
+      ]
+    },
+    {
+      "no": "28",
+      "kode_prodi": "56201",
+      "nama_prodi": "Teknik Komputer",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Baik",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik komputer"
+      ]
+    },
+    {
+      "no": "29",
+      "kode_prodi": "23201",
+      "nama_prodi": "Arsitektur",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Terakreditasi Pertama",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ars",
+        "arsitektur"
+      ]
+    },
+    {
+      "no": "30",
+      "kode_prodi": "-",
+      "nama_prodi": "Teknik Pertambangan",
+      "jenjang": "S1",
+      "fakultas": "Teknik",
+      "akreditasi": "Prodi Baru",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "teknik pertambangan"
+      ]
+    },
+    {
+      "no": "31",
+      "kode_prodi": "13201",
+      "nama_prodi": "Kesehatan Masyarakat",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "kesehatan masyarakat"
+      ]
+    },
+    {
+      "no": "32",
+      "kode_prodi": "13211",
+      "nama_prodi": "Ilmu Gizi",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ilmu gizi"
+      ]
+    },
+    {
+      "no": "33",
+      "kode_prodi": "14201",
+      "nama_prodi": "Keperawatan",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "kep",
+        "keperawatan"
+      ]
+    },
+    {
+      "no": "34",
+      "kode_prodi": "48201",
+      "nama_prodi": "Farmasi",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Baik Sekali",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "farm",
+        "farmasi"
+      ]
+    },
+    {
+      "no": "35",
+      "kode_prodi": "85201",
+      "nama_prodi": "Pendidikan Jasmani",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan jasmani"
+      ]
+    },
+    {
+      "no": "36",
+      "kode_prodi": "-",
+      "nama_prodi": "Pendidikan Kepelatihan Olahraga",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Prodi Baru",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan kepelatihan olahraga"
+      ]
+    },
+    {
+      "no": "37",
+      "kode_prodi": "79201",
+      "nama_prodi": "Sastra Indonesia",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "sastra indonesia"
+      ]
+    },
+    {
+      "no": "38",
+      "kode_prodi": "79202",
+      "nama_prodi": "Sastra Inggris",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "sastra inggris"
+      ]
+    },
+    {
+      "no": "39",
+      "kode_prodi": "79204",
+      "nama_prodi": "Sastra Jepang",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "sastra jepang"
+      ]
+    },
+    {
+      "no": "40",
+      "kode_prodi": "88201",
+      "nama_prodi": "Pendidikan Bahasa Indonesia",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan bahasa indonesia"
+      ]
+    },
+    {
+      "no": "41",
+      "kode_prodi": "88203",
+      "nama_prodi": "Pendidikan Bahasa Inggris",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan bahasa inggris"
+      ]
+    },
+    {
+      "no": "42",
+      "kode_prodi": "88205",
+      "nama_prodi": "Pendidikan Bahasa Jepang",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Baik",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "pendidikan bahasa jepang"
+      ]
+    },
+    {
+      "no": "43",
+      "kode_prodi": "44201",
+      "nama_prodi": "Matematika",
+      "jenjang": "S1",
+      "fakultas": "Matematika dan Ilmu Pengetahuan Alam",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "matematika",
+        "mtk"
+      ]
+    },
+    {
+      "no": "44",
+      "kode_prodi": "45201",
+      "nama_prodi": "Fisika",
+      "jenjang": "S1",
+      "fakultas": "Matematika dan Ilmu Pengetahuan Alam",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "fis",
+        "fisika"
+      ]
+    },
+    {
+      "no": "45",
+      "kode_prodi": "47201",
+      "nama_prodi": "Kimia",
+      "jenjang": "S1",
+      "fakultas": "Matematika dan Ilmu Pengetahuan Alam",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "kim",
+        "kimia"
+      ]
+    },
+    {
+      "no": "46",
+      "kode_prodi": "49205",
+      "nama_prodi": "Statistika",
+      "jenjang": "S1",
+      "fakultas": "Matematika dan Ilmu Pengetahuan Alam",
+      "akreditasi": "Baik",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "statistika"
+      ]
+    },
+    {
+      "no": "47",
+      "kode_prodi": "54241",
+      "nama_prodi": "Ilmu Kelautan",
+      "jenjang": "S1",
+      "fakultas": "Perikanan dan Ilmu Kelautan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "ilmu kelautan"
+      ]
+    },
+    {
+      "no": "48",
+      "kode_prodi": "54242",
+      "nama_prodi": "Manajemen Sumberdaya Perairan",
+      "jenjang": "S1",
+      "fakultas": "Perikanan dan Ilmu Kelautan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "manajemen",
+        "manajemen sumberdaya perairan",
+        "mnj"
+      ]
+    },
+    {
+      "no": "49",
+      "kode_prodi": "54243",
+      "nama_prodi": "Akuakultur",
+      "jenjang": "S1",
+      "fakultas": "Perikanan dan Ilmu Kelautan",
+      "akreditasi": "Baik Sekali",
+      "kategori_program": "Sarjana (S1)",
+      "aliases": [
+        "akuakultur"
+      ]
+    },
+    {
+      "no": "1",
+      "kode_prodi": "46201",
+      "nama_prodi": "Biologi Internasional",
+      "jenjang": "S1",
+      "fakultas": "Biologi",
+      "akreditasi": "A",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "bio",
+        "biologi",
+        "biologi internasional"
+      ]
+    },
+    {
+      "no": "2",
+      "kode_prodi": "60201",
+      "nama_prodi": "Ekonomi Pembangunan Kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "ekonomi pembangunan",
+        "ekonomi pembangunan kelas internasional",
+        "ep"
+      ]
+    },
+    {
+      "no": "3",
+      "kode_prodi": "61201",
+      "nama_prodi": "Manajemen Kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "manajemen",
+        "manajemen kelas internasional",
+        "mnj"
+      ]
+    },
+    {
+      "no": "4",
+      "kode_prodi": "62201",
+      "nama_prodi": "Akuntansi Kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "akun",
+        "akuntansi",
+        "akuntansi kelas internasional"
+      ]
+    },
+    {
+      "no": "5",
+      "kode_prodi": "74201",
+      "nama_prodi": "Hukum Kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Hukum",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "hukum",
+        "hukum kelas internasional"
+      ]
+    },
+    {
+      "no": "6",
+      "kode_prodi": "64201",
+      "nama_prodi": "Hubungan Internasional kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ilmu Sosial dan Ilmu Politik",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "hi",
+        "hubungan internasional",
+        "hubungan internasional kelas internasional"
+      ]
+    },
+    {
+      "no": "7",
+      "kode_prodi": "14201",
+      "nama_prodi": "Keperawatan Kelas Internasional",
+      "jenjang": "S1",
+      "fakultas": "Ilmu-ilmu Kesehatan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Sarjana Kelas Internasional (S1)",
+      "aliases": [
+        "kep",
+        "keperawatan",
+        "keperawatan kelas internasional"
+      ]
+    },
+    {
+      "no": "1",
+      "kode_prodi": "54401",
+      "nama_prodi": "Agribisnis",
+      "jenjang": "D3",
+      "fakultas": "Pertanian",
+      "akreditasi": "B",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "agb",
+        "agribisnis"
+      ]
+    },
+    {
+      "no": "2",
+      "kode_prodi": "54415",
+      "nama_prodi": "Perencanaan Sumber Daya Lahan",
+      "jenjang": "D3",
+      "fakultas": "Pertanian",
+      "akreditasi": "B",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "perencanaan sumber daya lahan"
+      ]
+    },
+    {
+      "no": "3",
+      "kode_prodi": "54442",
+      "nama_prodi": "Budi Daya Ikan",
+      "jenjang": "D3",
+      "fakultas": "Biologi",
+      "akreditasi": "B",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "budi daya ikan"
+      ]
+    },
+    {
+      "no": "4",
+      "kode_prodi": "61402",
+      "nama_prodi": "Bisnis Internasional",
+      "jenjang": "D3",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "bisnis internasional"
+      ]
+    },
+    {
+      "no": "5",
+      "kode_prodi": "62401",
+      "nama_prodi": "Akuntansi",
+      "jenjang": "D3",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "akun",
+        "akuntansi"
+      ]
+    },
+    {
+      "no": "6",
+      "kode_prodi": "63412",
+      "nama_prodi": "Administrasi Perkantoran",
+      "jenjang": "D3",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "administrasi perkantoran"
+      ]
+    },
+    {
+      "no": "7",
+      "kode_prodi": "63413",
+      "nama_prodi": "Administrasi Bisnis",
+      "jenjang": "D3",
+      "fakultas": "Ekonomi dan Bisnis",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "ab",
+        "adbis",
+        "administrasi bisnis"
+      ]
+    },
+    {
+      "no": "8",
+      "kode_prodi": "54432",
+      "nama_prodi": "Budi Daya Ternak",
+      "jenjang": "D3",
+      "fakultas": "Peternakan",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "budi daya ternak"
+      ]
+    },
+    {
+      "no": "9",
+      "kode_prodi": "79402",
+      "nama_prodi": "Bahasa Inggris",
+      "jenjang": "D3",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "Unggul",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "bahasa inggris"
+      ]
+    },
+    {
+      "no": "10",
+      "kode_prodi": "79409",
+      "nama_prodi": "Bahasa Mandarin",
+      "jenjang": "D3",
+      "fakultas": "Ilmu Budaya",
+      "akreditasi": "B",
+      "kategori_program": "Diploma 3 (D3)",
+      "aliases": [
+        "bahasa mandarin"
+      ]
+    }
+  ]
+}

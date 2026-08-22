@@ -111,8 +111,8 @@ else:
 st.markdown("---")
 
 # --------------- Cleaning Operations ---------------
-tab_quick, tab_replace, tab_columns, tab_editor, tab_fuzzy, tab_validation, tab_log = st.tabs([
-    ":material/flash_on: Quick", ":material/find_replace: Replace", ":material/view_column: Kolom", ":material/edit: Edit", ":material/merge_type: Kategori", ":material/verified_user: Validasi", ":material/history: Log"
+tab_quick, tab_replace, tab_columns, tab_editor, tab_fuzzy, tab_prodi, tab_validation, tab_log = st.tabs([
+    ":material/flash_on: Quick", ":material/find_replace: Replace", ":material/view_column: Kolom", ":material/edit: Edit", ":material/merge_type: Kategori", ":material/school: Deteksi Jurusan", ":material/verified_user: Validasi", ":material/history: Log"
 ])
 
 with tab_quick:
@@ -334,6 +334,117 @@ with tab_fuzzy:
                 st.warning("Terlalu banyak nilai unik (>500) untuk dilakukan fuzzy matching. Silakan gunakan Replace Manual.")
         except ImportError:
             st.error("Pustaka `thefuzz` belum terinstal.")
+
+with tab_prodi:
+    st.markdown("### Deteksi & Standarisasi Jurusan/Program Studi")
+    st.caption(
+        "Cocokkan jawaban bebas responden (mis. asal jurusan/prodi) ke daftar "
+        "resmi Program Studi Unsoed (hasil scraping halaman "
+        "[Prodi & Daya Tampung](https://pendaftaran.admisi.unsoed.ac.id/apps/info/prodi-dan-daya-tampung))."
+    )
+
+    from utils.scraper_prodi_unsoed import load_prodi_data, refresh_prodi_data, get_last_scraped_info
+    from utils.prodi_matcher import detect_prodi_column, normalize_prodi_column
+
+    info = get_last_scraped_info()
+    col_info, col_refresh = st.columns([3, 1])
+    with col_info:
+        if info:
+            st.caption(
+                f":material/database: {info['total_records']} program studi tersimpan "
+                f"(terakhir diambil: {info['scraped_at']})"
+            )
+        else:
+            st.caption(":material/info: Data prodi belum pernah diambil.")
+    with col_refresh:
+        if st.button(":material/refresh: Update Data Prodi", use_container_width=True):
+            with st.spinner("Mengambil data terbaru dari admisi.unsoed.ac.id..."):
+                try:
+                    new_data = refresh_prodi_data()
+                    st.success(f"Berhasil update {len(new_data)} program studi!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal mengambil data: {e}")
+
+    st.markdown("---")
+
+    text_cols = df.select_dtypes(include=["object"]).columns.tolist()
+    if not text_cols:
+        st.info("Tidak ada kolom teks pada dataset ini.")
+    else:
+        # Auto-suggest kolom yang kemungkinan berisi nama jurusan/prodi
+        suggested_col = None
+        for c in text_cols:
+            if any(kw in c.lower() for kw in ["jurusan", "prodi", "program studi"]):
+                suggested_col = c
+                break
+
+        default_idx = text_cols.index(suggested_col) if suggested_col else 0
+        prodi_col = st.selectbox(
+            "Pilih kolom yang berisi jurusan/program studi",
+            text_cols,
+            index=default_idx,
+            key="prodi_col",
+        )
+
+        if suggested_col == prodi_col:
+            st.caption(":material/auto_awesome: Kolom ini otomatis disarankan berdasarkan nama kolom.")
+
+        threshold = st.slider(
+            "Ambang batas kemiripan fuzzy matching (%)", 60, 99, 80, key="prodi_fuzzy_thresh"
+        )
+
+        if st.button(":material/search: Deteksi & Cocokkan", key="run_prodi_match"):
+            with st.spinner("Mencocokkan ke database prodi..."):
+                result_df = normalize_prodi_column(df[prodi_col], fuzzy_threshold=threshold)
+                st.session_state["prodi_match_result"] = result_df
+
+        if "prodi_match_result" in st.session_state:
+            result_df = st.session_state["prodi_match_result"]
+
+            n_total = len(result_df)
+            n_matched = (result_df["match_type"].isin(["exact", "fuzzy"])).sum()
+            n_exact = (result_df["match_type"] == "exact").sum()
+            n_fuzzy = (result_df["match_type"] == "fuzzy").sum()
+            n_unmatched = n_total - n_matched
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Baris", n_total)
+            m2.metric("Match Persis", n_exact)
+            m3.metric("Match Fuzzy", n_fuzzy)
+            m4.metric("Tidak Cocok", n_unmatched)
+
+            preview = pd.concat(
+                [df[[prodi_col]].reset_index(drop=True), result_df.reset_index(drop=True)],
+                axis=1,
+            )
+            st.dataframe(preview, use_container_width=True, height=350)
+
+            if n_unmatched > 0:
+                with st.expander(f":material/warning: Lihat {n_unmatched} jawaban yang tidak cocok"):
+                    unmatched_vals = preview[result_df["match_type"] == "none"][prodi_col].value_counts()
+                    st.dataframe(unmatched_vals.rename("jumlah"), use_container_width=True)
+                    st.caption(
+                        "Kemungkinan: typo parah, nama prodi non-Unsoed, jenjang S2/S3 "
+                        "(tidak ada di database ini), atau prodi lama yang sudah tidak "
+                        "aktif. Turunkan ambang batas fuzzy atau standarisasi manual."
+                    )
+
+            if st.button(":material/save: Terapkan sebagai Kolom Baru", type="primary", key="apply_prodi_std"):
+                new_df = df.copy()
+                new_df[f"{prodi_col}_std"] = result_df["nama_prodi_std"].values
+                new_df[f"{prodi_col}_kode"] = result_df["kode_prodi"].values
+                new_df[f"{prodi_col}_fakultas"] = result_df["fakultas"].values
+                apply_change(
+                    new_df,
+                    f"Deteksi & standarisasi jurusan dari '{prodi_col}' "
+                    f"({n_matched}/{n_total} cocok)",
+                )
+                st.success(
+                    f":material/check_circle: Ditambahkan kolom `{prodi_col}_std`, "
+                    f"`{prodi_col}_kode`, `{prodi_col}_fakultas`!"
+                )
+                st.rerun()
 
 with tab_validation:
     st.markdown("### Validasi Responden")

@@ -12,3 +12,5 @@ thefuzz
 python-Levenshtein
 scikit-learn
 scipy
+requests
+beautifulsoup4

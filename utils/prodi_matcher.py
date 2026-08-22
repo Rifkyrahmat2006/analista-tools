@@ -1,0 +1,177 @@
+"""
+Deteksi & Normalisasi Jurusan/Program Studi
+=============================================
+Mencocokkan teks bebas (jawaban survei responden, mis. "TI", "tek informatika",
+"Teknik Informatika S1") ke daftar program studi resmi Unsoed hasil scraping
+(lihat utils/scraper_prodi_unsoed.py).
+
+Pipeline:
+1. Normalisasi teks input (lowercase, strip, buang noise umum: "s1", "jurusan", dll)
+2. Exact match ke nama_prodi / alias
+3. Kalau tidak exact, fuzzy match (thefuzz) ke seluruh nama_prodi + alias
+4. Return kode_prodi, nama_prodi resmi, fakultas, skor kepercayaan match
+
+Dipakai di:
+- pages/2_data_cleaning.py -> tab baru "Deteksi Jurusan" (standardisasi kolom prodi)
+- utils/question_detection.py -> bisa dipanggil sebagai heuristic tambahan untuk
+  mendeteksi kolom yang berisi nama program studi/jurusan
+"""
+
+import re
+from typing import Dict, List, Optional, Tuple
+
+import pandas as pd
+
+from utils.scraper_prodi_unsoed import load_prodi_data
+
+try:
+    from thefuzz import fuzz, process
+    _HAS_THEFUZZ = True
+except ImportError:
+    _HAS_THEFUZZ = False
+
+# Noise words yang sering ikut terketik responden dan perlu dibuang sebelum matching
+_NOISE_PATTERN = re.compile(
+    r"\b(jurusan|prodi|program studi|fakultas|s1|s\.1|d3|d\.3|kelas internasional|"
+    r"international class|reguler)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _normalize(text: str) -> str:
+    if not isinstance(text, str):
+        return ""
+    t = text.lower().strip()
+    t = _NOISE_PATTERN.sub("", t)
+    t = re.sub(r"[^a-z0-9\s]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def _build_lookup(prodi_data: List[Dict]) -> Tuple[Dict[str, Dict], List[str]]:
+    """
+    Bangun index: alias_string -> record prodi, plus daftar semua alias
+    (untuk fuzzy candidate pool).
+    """
+    lookup: Dict[str, Dict] = {}
+    for rec in prodi_data:
+        candidates = set(rec.get("aliases", []))
+        candidates.add(rec.get("nama_prodi", "").lower())
+        for c in candidates:
+            norm = _normalize(c)
+            if norm and norm not in lookup:
+                lookup[norm] = rec
+    return lookup, list(lookup.keys())
+
+
+def match_prodi(
+    text: str,
+    prodi_data: Optional[List[Dict]] = None,
+    fuzzy_threshold: int = 80,
+) -> Optional[Dict]:
+    """
+    Cocokkan satu string input ke program studi resmi.
+
+    Returns dict berisi:
+        kode_prodi, nama_prodi, fakultas, jenjang, kategori_program,
+        match_type ('exact' | 'fuzzy' | 'none'), confidence (0-100)
+    atau None jika input kosong.
+    """
+    if not text or not isinstance(text, str) or not text.strip():
+        return None
+
+    if prodi_data is None:
+        prodi_data = load_prodi_data()
+
+    lookup, all_keys = _build_lookup(prodi_data)
+    norm_input = _normalize(text)
+
+    if not norm_input:
+        return None
+
+    # 1. Exact match
+    if norm_input in lookup:
+        rec = lookup[norm_input]
+        return _format_result(rec, "exact", 100)
+
+    # 2. Fuzzy match
+    if _HAS_THEFUZZ and all_keys:
+        best = process.extractOne(norm_input, all_keys, scorer=fuzz.token_sort_ratio)
+        if best and best[1] >= fuzzy_threshold:
+            rec = lookup[best[0]]
+            return _format_result(rec, "fuzzy", best[1])
+
+    return _format_result(None, "none", 0, raw_text=text)
+
+
+def _format_result(rec: Optional[Dict], match_type: str, confidence: float, raw_text: str = "") -> Dict:
+    if rec is None:
+        return {
+            "input_text": raw_text,
+            "kode_prodi": None,
+            "nama_prodi": None,
+            "fakultas": None,
+            "jenjang": None,
+            "kategori_program": None,
+            "akreditasi": None,
+            "match_type": match_type,
+            "confidence": confidence,
+        }
+    return {
+        "input_text": raw_text,
+        "kode_prodi": rec.get("kode_prodi"),
+        "nama_prodi": rec.get("nama_prodi"),
+        "fakultas": rec.get("fakultas"),
+        "jenjang": rec.get("jenjang"),
+        "kategori_program": rec.get("kategori_program"),
+        "akreditasi": rec.get("akreditasi"),
+        "match_type": match_type,
+        "confidence": confidence,
+    }
+
+
+def detect_prodi_column(series: pd.Series, sample_size: int = 50, min_match_ratio: float = 0.5) -> bool:
+    """
+    Heuristic: apakah sebuah kolom survei kemungkinan besar berisi nama
+    program studi/jurusan? Dicek dengan mencoba match sample nilai unik
+    ke database prodi.
+
+    Return True jika >= min_match_ratio dari sample berhasil match
+    (exact atau fuzzy dengan confidence tinggi).
+    """
+    non_null = series.dropna().astype(str)
+    if len(non_null) == 0:
+        return False
+
+    unique_vals = non_null.unique().tolist()[:sample_size]
+    if not unique_vals:
+        return False
+
+    prodi_data = load_prodi_data()
+    matched = 0
+    for v in unique_vals:
+        result = match_prodi(v, prodi_data=prodi_data, fuzzy_threshold=85)
+        if result and result["match_type"] in ("exact", "fuzzy"):
+            matched += 1
+
+    return (matched / len(unique_vals)) >= min_match_ratio
+
+
+def normalize_prodi_column(series: pd.Series, fuzzy_threshold: int = 80) -> pd.DataFrame:
+    """
+    Terapkan match_prodi ke seluruh kolom, return DataFrame hasil dengan
+    kolom tambahan: nama_prodi_std, kode_prodi, fakultas, match_type, confidence.
+
+    Cocok dipakai di pages/2_data_cleaning.py untuk standarisasi kolom
+    "Jurusan/Prodi asal" pada survei.
+    """
+    prodi_data = load_prodi_data()
+
+    results = []
+    for val in series:
+        r = match_prodi(str(val) if pd.notna(val) else "", prodi_data=prodi_data, fuzzy_threshold=fuzzy_threshold)
+        results.append(r or {})
+
+    result_df = pd.DataFrame(results)
+    result_df.rename(columns={"nama_prodi": "nama_prodi_std"}, inplace=True)
+    return result_df
