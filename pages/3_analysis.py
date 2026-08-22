@@ -749,7 +749,7 @@ with tab_thematic:
                         if st.button("Hitung Rekomendasi K (Elbow)", key="oe_calc_elbow"):
                             with st.spinner("Menghitung Elbow Method..."):
                                 from utils.open_ended_preprocessing import preprocess_pipeline, get_valid_texts_for_clustering
-                                from utils.nlp_clustering import get_tfidf_matrix_new, compute_elbow_data
+                                from utils.nlp_clustering import get_tfidf_matrix, compute_elbow_data
                                 
                                 # Preprocess ringan
                                 temp_df = preprocess_pipeline(
@@ -765,7 +765,7 @@ with tab_thematic:
                                     d_sw_set = DOMAIN_SURVEY_STOPWORDS if st.session_state.get("oe_use_domain_sw", True) else set()
                                     d_sw_set = d_sw_set | ({w.strip().lower() for w in st.session_state.get("oe_extra_sw", "").split(",") if w.strip()} if st.session_state.get("oe_extra_sw", "") else set())
                                     
-                                    t_mat, _ = get_tfidf_matrix_new(p_texts, max_features=1500, context_stopwords=c_sw_list, domain_stopwords=d_sw_set)
+                                    t_mat, _ = get_tfidf_matrix(p_texts, max_features=1500, context_stopwords=c_sw_list, domain_stopwords=d_sw_set)
                                     if t_mat is not None:
                                         k_max_elbow = min(15, max(2, t_mat.shape[0] - 1))
                                         elbow_data = compute_elbow_data(t_mat, k_max=k_max_elbow, random_state=42)
