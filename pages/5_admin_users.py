@@ -12,7 +12,7 @@ from utils.db import (
     update_user_role, reset_user_password, delete_user, can_manage_role,
     log_action, get_audit_log, delete_all_sessions_for_user,
 )
-from utils.permissions import PERMISSIONS, PERMISSION_LABELS, ALL_ROLES, get_role_permissions
+from utils.permissions import PERMISSION_LABELS, ALL_ROLES, get_role_permissions
 
 st.set_page_config(page_title="Manajemen User", layout="wide")
 inject_theme_css()
