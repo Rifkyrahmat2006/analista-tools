@@ -38,6 +38,32 @@ def _get_cookie_controller() -> CookieController:
     return CookieController(key="analista_cookie_controller")
 
 
+def _safe_get_all_cookies(controller: CookieController):
+    """
+    Wrapper defensif di sekitar controller.getAll().
+
+    BUG YANG DITEMUKAN DI PRODUKSI: streamlit-cookies-controller kadang
+    mengembalikan None (bukan dict kosong {}) dari komponen browser-nya —
+    entah karena race condition komponen belum resolve, atau kegagalan
+    JS di sisi browser. Kode library sendiri (`get()`) langsung melakukan
+    `name not in self.__cookies` tanpa cek None dulu, jadi crash
+    TypeError kalau itu terjadi. Kita tidak bisa/boleh edit file di
+    site-packages (hilang tiap rebuild), jadi dibungkus aman di sini.
+
+    Return (cookies_dict_or_None, is_definitely_resolved: bool)
+    """
+    try:
+        all_cookies = controller.getAll()
+    except Exception:
+        return None, False
+
+    if not isinstance(all_cookies, dict):
+        # None, atau tipe aneh lain — anggap belum "resolve" beneran
+        return None, False
+
+    return all_cookies, True
+
+
 def _restore_session_from_cookie() -> bool:
     """
     Kalau session_state kosong (mis. abis refresh) tapi ada cookie token
@@ -50,26 +76,33 @@ def _restore_session_from_cookie() -> bool:
     # (iframe kecil di browser yang baca document.cookie lalu lapor balik
     # ke Python lewat WebSocket). Pada render PERTAMA sebuah sesi WS baru
     # (mis. abis browser refresh), Python BELUM PUNYA jawaban asli dari
-    # browser — Streamlit mengembalikan `default={}` untuk render itu,
-    # dan baru memicu rerun OTOMATIS setelah browser benar-benar mengirim
-    # balik isi cookie. Ini bukan sesuatu yang bisa dipercepat dengan
-    # st.rerun() manual di sisi server (respons belum sempat sampai ke
-    # browser sama sekali saat itu) — solusinya adalah MEMBEDAKAN kondisi
-    # "belum dapat jawaban" vs "sudah dapat jawaban, memang tidak ada
-    # cookie", lalu tampilkan status netral (bukan form login) selama
-    # masih menunggu, supaya user tidak "terlihat logout" padahal cuma
-    # menunggu satu round-trip yang berlangsung sepersekian detik.
-    cookie_state_key = "analista_cookie_controller"
-    waiting_for_first_response = cookie_state_key not in st.session_state
+    # browser, dan bahkan setelah "resolve" library ini kadang balikin
+    # None bukan dict (lihat _safe_get_all_cookies). Solusinya adalah
+    # MEMBEDAKAN kondisi "belum dapat jawaban valid" vs "sudah dapat
+    # jawaban, memang tidak ada cookie", lalu tampilkan status netral
+    # (bukan form login) selama masih menunggu — TAPI dibatasi jumlah
+    # percobaan supaya tidak nyangkut selamanya kalau memang error.
+    MAX_PENDING_ATTEMPTS = 6
 
     controller = _get_cookie_controller()
+    all_cookies, resolved = _safe_get_all_cookies(controller)
 
-    if waiting_for_first_response:
-        st.session_state["_cookie_check_pending"] = True
+    if not resolved:
+        attempts = st.session_state.get("_cookie_check_attempts", 0) + 1
+        st.session_state["_cookie_check_attempts"] = attempts
+        if attempts <= MAX_PENDING_ATTEMPTS:
+            st.session_state["_cookie_check_pending"] = True
+            return False
+        # Sudah dicoba berkali-kali dan tetap gagal resolve — daripada
+        # macet permanen di layar "Memeriksa sesi...", anggap saja belum
+        # login dan tampilkan form (user tinggal login manual).
+        st.session_state["_cookie_check_pending"] = False
         return False
 
     st.session_state["_cookie_check_pending"] = False
-    token = controller.get(COOKIE_NAME)
+    st.session_state["_cookie_check_attempts"] = 0
+
+    token = all_cookies.get(COOKIE_NAME)
     if not token:
         return False
 
@@ -121,6 +154,29 @@ def _do_login(username: str, password: str) -> bool:
     controller = _get_cookie_controller()
     controller.set(COOKIE_NAME, token, max_age=COOKIE_TTL_DAYS * 24 * 60 * 60)
 
+    # PENTING — root cause bug "refresh = logout" yang sebenarnya:
+    # CookieController.set() memanggil custom Streamlit component (iframe)
+    # yang mengirim postMessage ke browser untuk EKSEKUSI document.cookie=...
+    # di sana. Ini panggilan asinkron/"fire-and-forget" dari sisi Python —
+    # tidak ada mekanisme built-in utk menunggu browser benar-benar selesai
+    # menjalankannya. Kalau st.rerun() dipanggil LANGSUNG setelah set(),
+    # Streamlit langsung membongkar komponen (iframe) itu dari DOM sebelum
+    # browser sempat memuat+menjalankan JS-nya (load pertama component
+    # ini butuh ~9 DETIK di jaringan produksi, diverifikasi via network
+    # trace) — jadi cookie-nya TIDAK PERNAH benar-benar tertulis, meski
+    # login di server sukses. User keliatannya "berhasil login" sesaat,
+    # tapi begitu refresh, cookie kosong -> ke-logout.
+    #
+    # Fix: beri jeda supaya browser sempat proses postMessage-nya SEBELUM
+    # rerun membongkar komponennya. Component sudah "dihangatkan" duluan
+    # di render_login_form() (dipanggil saat halaman login pertama kali
+    # ditampilkan, jauh sebelum user selesai isi form), jadi saat sampai
+    # di titik ini JS-nya harusnya sudah ter-cache di browser dan proses
+    # set() jauh lebih cepat (~150-270ms berdasarkan observasi network,
+    # dibanding ~9000ms untuk cold-load pertama).
+    import time
+    time.sleep(0.8)
+
     log_action(user["username"], user["role"], "login", "Login berhasil")
     return True
 
@@ -144,6 +200,14 @@ def logout() -> None:
 def render_login_form() -> None:
     """Tampilkan form login full-page. Panggil lalu st.stop() kalau belum login."""
     init_db()
+
+    # "Hangatkan" komponen cookie controller SEDINI mungkin — begitu
+    # halaman login pertama kali dirender, jauh sebelum user selesai isi
+    # username/password & klik submit. Ini memberi waktu jaringan yg jauh
+    # lebih longgar utk komponen (iframe React, ~340KB) selesai dimuat &
+    # ter-cache oleh browser, dibanding kalau baru dipanggil pas _do_login()
+    # (lihat penjelasan lengkap timing di _do_login).
+    _get_cookie_controller()
 
     # Sembunyikan total sidebar (termasuk daftar navigasi halaman) selama
     # user belum login — jangan bocorkan struktur menu aplikasi sebelum auth.
