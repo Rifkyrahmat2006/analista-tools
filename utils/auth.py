@@ -15,6 +15,7 @@ tabel `sessions` di database pada awal tiap render halaman.
 """
 
 import streamlit as st
+from datetime import timedelta
 from streamlit_cookies_controller import CookieController
 
 from utils.db import (
@@ -24,6 +25,7 @@ from utils.db import (
 
 SESSION_KEYS = ["auth_user", "auth_role", "auth_username", "auth_full_name"]
 COOKIE_NAME = "analista_session_token"
+COOKIE_TTL_DAYS = 7  # samakan dgn SESSION_TTL_DAYS di utils/db.py
 
 
 def _get_cookie_controller() -> CookieController:
@@ -44,7 +46,29 @@ def _restore_session_from_cookie() -> bool:
     if st.session_state.get("auth_user"):
         return True  # sudah login di session_state, tidak perlu restore
 
+    # PENTING soal timing: CookieController jalan lewat custom component
+    # (iframe kecil di browser yang baca document.cookie lalu lapor balik
+    # ke Python lewat WebSocket). Pada render PERTAMA sebuah sesi WS baru
+    # (mis. abis browser refresh), Python BELUM PUNYA jawaban asli dari
+    # browser — Streamlit mengembalikan `default={}` untuk render itu,
+    # dan baru memicu rerun OTOMATIS setelah browser benar-benar mengirim
+    # balik isi cookie. Ini bukan sesuatu yang bisa dipercepat dengan
+    # st.rerun() manual di sisi server (respons belum sempat sampai ke
+    # browser sama sekali saat itu) — solusinya adalah MEMBEDAKAN kondisi
+    # "belum dapat jawaban" vs "sudah dapat jawaban, memang tidak ada
+    # cookie", lalu tampilkan status netral (bukan form login) selama
+    # masih menunggu, supaya user tidak "terlihat logout" padahal cuma
+    # menunggu satu round-trip yang berlangsung sepersekian detik.
+    cookie_state_key = "analista_cookie_controller"
+    waiting_for_first_response = cookie_state_key not in st.session_state
+
     controller = _get_cookie_controller()
+
+    if waiting_for_first_response:
+        st.session_state["_cookie_check_pending"] = True
+        return False
+
+    st.session_state["_cookie_check_pending"] = False
     token = controller.get(COOKIE_NAME)
     if not token:
         return False
@@ -95,7 +119,7 @@ def _do_login(username: str, password: str) -> bool:
     st.session_state["auth_session_token"] = token
 
     controller = _get_cookie_controller()
-    controller.set(COOKIE_NAME, token)
+    controller.set(COOKIE_NAME, token, max_age=COOKIE_TTL_DAYS * 24 * 60 * 60)
 
     log_action(user["username"], user["role"], "login", "Login berhasil")
     return True
@@ -113,7 +137,7 @@ def logout() -> None:
     controller = _get_cookie_controller()
     controller.remove(COOKIE_NAME)
 
-    for key in SESSION_KEYS + ["auth_user_id", "auth_session_token"]:
+    for key in SESSION_KEYS + ["auth_user_id", "auth_session_token", "_cookie_bootstrap_done"]:
         st.session_state.pop(key, None)
 
 
@@ -165,7 +189,25 @@ def require_login() -> dict:
     dan st.stop() (halaman berhenti render). Return dict user kalau sudah login.
     """
     if not is_logged_in():
-        render_login_form()
+        if st.session_state.get("_cookie_check_pending"):
+            # Masih menunggu jawaban pertama dari komponen cookie browser
+            # (lihat penjelasan di _restore_session_from_cookie). Tampilkan
+            # status netral, BUKAN form login — supaya user yang sebenarnya
+            # masih login tidak melihat "logout" sekilas tiap refresh.
+            st.markdown(
+                """
+                <style>
+                    [data-testid="stSidebar"] { display: none !important; }
+                    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+                </style>
+                <div style="text-align:center; padding: 4rem 0;">
+                    <p style="color: #888;">Memeriksa sesi login…</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            render_login_form()
         st.stop()
     return current_user()
 
