@@ -372,3 +372,11 @@ def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title,
     plt.close(fig)
     return buf.getvalue()
 
+
+def df_to_xlsx_bytes(df: pd.DataFrame) -> bytes:
+    """Convert DataFrame ke Excel bytes. Dipakai di halaman Visualization & Pembagian Tugas."""
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    return buf.getvalue()
+
