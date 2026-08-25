@@ -21,6 +21,7 @@ from utils.chart_builder import (
 from utils.export_helpers import table_to_png, render_copy_button, generate_matplotlib_chart, df_to_xlsx_bytes
 from utils.multi_select_analysis import get_multiple_choice_preview
 from utils.theme import get_light_plotly_layout
+from utils.wordcloud_ui import render_wordcloud_section
 
 st.set_page_config(page_title="Pembagian Tugas", layout="wide")
 inject_theme_css()
@@ -209,10 +210,14 @@ with tab_my:
                 "Upload/pilih ulang dataset yang sesuai untuk melihat chart & tabelnya."
             )
         elif question_type == "open_text":
-            st.info(
-                ":material/text_fields: Pertanyaan ini bertipe **open text** (jawaban bebas) — "
-                "gunakan tab **Wordcloud** di halaman Visualization untuk analisis kata kunci & wordcloud-nya."
-            )
+            # PERMINTAAN USER: wordcloud untuk pertanyaan open_text
+            # langsung di sini, tidak perlu pindah ke halaman
+            # Visualization -> tab Wordcloud -> cari kolom yang sama lagi.
+            if a["column_name"] not in df.columns:
+                st.warning(f":material/warning: Kolom **{a['column_name']}** tidak ditemukan di dataset aktif.")
+            else:
+                st.markdown(f"### :material/cloud: Wordcloud — {a['column_name']}")
+                render_wordcloud_section(df, a["column_name"], key_prefix=f"my_wc_{a['id']}")
         elif a["column_name"] not in df.columns:
             st.warning(f":material/warning: Kolom **{a['column_name']}** tidak ditemukan di dataset aktif.")
         else:

@@ -496,100 +496,10 @@ with tab_wordcloud:
     if not text_columns:
         st.warning(":material/warning: Tidak ada kolom teks dalam dataset.")
     else:
-        col_config, col_preview = st.columns([1, 2])
-
-        with col_config:
-            st.markdown("#### :material/settings: Pengaturan")
-            selected_wc_col = st.selectbox(":material/edit_document: Pilih Kolom Teks", text_columns, key="wc_col")
-            st.markdown("---")
-            max_words = st.slider("Jumlah Kata Maksimum", 20, 200, 100, step=10, key="wc_maxwords")
-            top_n     = st.slider("Top Keywords", 5, 50, 20, key="wc_topn")
-            colormap = st.selectbox(":material/palette: Skema Warna Wordcloud", ["Set2", "Set3", "Pastel1", "Dark2", "Accent", "tab10", "viridis", "plasma"], key="wc_colormap", format_func=lambda x: f"{WC_SCALE_EMOJIS.get(x, '●')} {x}")
-            kw_colorscale = st.selectbox(":material/palette: Skema Warna Top Keyword", COLOR_SCALES, index=0, key="wc_kw_colorscale", format_func=lambda x: f"{SCALE_EMOJIS.get(x, '●')} {x}")
-            bg_color = st.color_picker("Background Color", value="#FFFFFF", key="wc_bgcolor")
-            st.markdown("---")
-            use_stemming = st.checkbox("Gunakan Stemming (Sastrawi)", value=False, help="Mengubah kata berimbuhan menjadi kata dasar (misal: 'mengajar' -> 'ajar'). Dapat memperlambat proses pada data besar.")
-            extra_stopwords_input = st.text_area(":material/block: Stopwords Tambahan", placeholder="dll, dsb, yg, tdk", key="wc_stopwords")
-            generate_btn = st.button(":material/rocket_launch: Generate Wordcloud", type="primary", use_container_width=True)
-
-        with col_preview:
-            if generate_btn and selected_wc_col:
-                with st.spinner("Menganalisis teks..."):
-                    extra_sw = {w.strip().lower() for w in extra_stopwords_input.split(",") if w.strip()}
-                    analysis  = analyze_text_column(df, selected_wc_col, extra_stopwords=extra_sw, use_stemming=use_stemming)
-                    word_freq = analysis["word_freq"]
-                    top_kw    = get_top_keywords(word_freq, top_n=top_n)
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Total Respons", analysis["total_responses"])
-                c2.metric("Total Kata", analysis["total_words"])
-                c3.metric("Kata Unik", analysis["unique_words"])
-
-                if word_freq:
-                    wc = generate_wordcloud(word_freq, width=1000, height=500, background_color=bg_color, colormap=colormap, max_words=max_words)
-                    if wc:
-                        fig_wc, ax = plt.subplots(figsize=(12, 6))
-                        ax.imshow(wc, interpolation="bilinear")
-                        ax.axis("off")
-                        fig_wc.patch.set_facecolor(bg_color)
-                        plt.tight_layout(pad=0)
-                        st.pyplot(fig_wc, use_container_width=True)
-                        plt.close(fig_wc)
-
-                        buf = BytesIO()
-                        wc_img = wc.to_image()
-                        wc_img.save(buf, format="PNG")
-                        img_bytes = buf.getvalue()
-
-                        c_dl1, c_dl2 = st.columns(2)
-                        with c_dl1:
-                            st.download_button(
-                                ":material/download: Download Wordcloud (PNG)", 
-                                data=img_bytes, 
-                                file_name=f"wordcloud_{selected_wc_col}.png", 
-                                mime="image/png", 
-                                use_container_width=True
-                            )
-                        with c_dl2:
-                            render_copy_button(img_bytes, "Copy Wordcloud PNG", key="copy_wc")
-                        
-                        with st.expander(":material/image: Tampilkan Wordcloud (Untuk Copy Manual)"):
-                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
-                            st.image(img_bytes)
-
-                    st.markdown("### :material/key: Top Keywords")
-                    kw_theme = PLOTLY_SCALE_MAP.get(kw_colorscale, kw_colorscale)
-                    fig_kw = px.bar(top_kw, x="Frequency", y="Keyword", orientation="h", color="Frequency", color_continuous_scale=kw_theme, text="Frequency")
-                    fig_kw.update_layout(yaxis=dict(autorange="reversed"), margin=dict(t=20, b=20), height=max(300, top_n * 25), coloraxis_showscale=False)
-                    if force_light_mode: fig_kw.update_layout(**EXPORT_LAYOUT)
-                    st.plotly_chart(fig_kw, use_container_width=True, theme=None if force_light_mode else "streamlit")
-
-                    try:
-                        fig_kw_exp = go.Figure(fig_kw)
-                        fig_kw_exp.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#1a1a2e"), width=1400)
-                        kw_png = fig_kw_exp.to_image(format="png", scale=2)
-                        render_copy_button(kw_png, "Copy Chart PNG", key="copy_kw_chart")
-                        with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
-                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
-                            st.image(kw_png)
-                    except Exception as e:
-                        # BUG YANG DIPERBAIKI (dilaporkan user): `except: pass`
-                        # sebelumnya menyembunyikan error TOTAL — fitur "Copy
-                        # Chart PNG" untuk Top Keywords selalu gagal diam-diam
-                        # kalau package `kaleido` (dipakai fig.to_image())
-                        # tidak terinstall, tanpa pesan apapun ke user. Sudah
-                        # ditambahkan kaleido ke requirements.txt sebagai fix
-                        # utama; except ini sekarang tetap eksplisit + tampilkan
-                        # pesan supaya kalau suatu saat gagal lagi (mis. deploy
-                        # lupa rebuild), user tahu penyebabnya alih-alih diam.
-                        st.warning(f":material/warning: Gagal membuat gambar chart Top Keywords: {e}")
-
-                    with st.expander(":material/table_chart: Lihat Tabel Kata"):
-                        st.dataframe(top_kw, use_container_width=True, hide_index=True)
-                else:
-                    st.warning("Tidak ada kata yang ditemukan.")
-            else:
-                st.info(":material/arrow_back: Pilih kolom teks dan klik **Generate Wordcloud**.")
+        selected_wc_col = st.selectbox(":material/edit_document: Pilih Kolom Teks", text_columns, key="wc_col")
+        st.markdown("---")
+        from utils.wordcloud_ui import render_wordcloud_section
+        render_wordcloud_section(df, selected_wc_col, key_prefix="viz_wc", force_light_mode=force_light_mode)
 
 render_sidebar_footer()
 render_page_footer()
