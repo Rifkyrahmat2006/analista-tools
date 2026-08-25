@@ -141,6 +141,39 @@ def init_db() -> None:
             )
         """)
 
+        # BUG NYATA YANG DIPERBAIKI (ditemukan lewat testing browser
+        # sungguhan): tabel assignments TIDAK PERNAH punya UNIQUE
+        # constraint per question_id sejak awal dibuat -- kalau ada lebih
+        # dari 1 baris assignment utk question_id yang sama (mis. insert
+        # manual via SQL langsung tanpa lewat assign_question(), atau bug
+        # lain di masa depan), list_survey_questions() (LEFT JOIN ke
+        # assignments) mengembalikan BARIS DUPLIKAT utk pertanyaan itu --
+        # setiap baris dobel bikin widget key (mis. f"qtype_{q['id']}")
+        # ke-render 2x dgn key yang SAMA persis -> Streamlit crash
+        # StreamlitDuplicateElementKey, SELURUH tab Setup Pertanyaan tidak
+        # bisa dibuka sampai duplikatnya dibersihkan manual.
+        # Fix 2 lapis:
+        #   1) Migrasi sekali jalan: hapus duplikat lama (simpan baris
+        #      TERBARU per question_id berdasarkan id tertinggi -- asumsi
+        #      assignment terakhir yg dibuat/diupdate paling valid).
+        #   2) UNIQUE constraint permanen supaya kejadian ini TIDAK BISA
+        #      terulang lagi di masa depan, apapun penyebabnya.
+        cur.execute("""
+            DELETE FROM assignments a USING assignments b
+            WHERE a.question_id = b.question_id AND a.id < b.id
+        """)
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'assignments_question_id_key'
+                ) THEN
+                    ALTER TABLE assignments ADD CONSTRAINT assignments_question_id_key UNIQUE (question_id);
+                END IF;
+            END $$;
+        """)
+
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 token TEXT PRIMARY KEY,

@@ -322,7 +322,21 @@ with tab_my:
             with col_config:
                 st.markdown("#### :material/settings: Pengaturan Chart")
                 chart_options = CHART_OPTIONS_PER_TYPE.get(question_type, ["Bar Chart"])
-                default_chart = DEFAULT_CHART_PER_TYPE.get(question_type, chart_options[0])
+                # BUG DIPERBAIKI (dilaporkan user): sebelumnya default
+                # chart di sini SELALU pakai DEFAULT_CHART_PER_TYPE
+                # (hardcode per tipe, mis. "Pie Chart" utk single_choice),
+                # TIDAK PERNAH membaca a["suggested_chart"] yg sudah
+                # di-set manual admin di Setup Pertanyaan -- jadi walau
+                # admin sudah ganti chart disarankan "Fakultas" jadi "Bar
+                # Chart" di sana, tab Tugas Saya tetap paksa balik ke Pie
+                # Chart (default single_choice). Sekarang: kalau
+                # suggested_chart tersimpan valid utk tipe soal ini,
+                # PAKAI itu sebagai default; fallback ke DEFAULT_CHART_PER_TYPE
+                # HANYA kalau belum pernah di-set / tidak valid lagi
+                # (mis. tipe soal berubah tapi suggested_chart lama sudah
+                # tidak cocok dgn opsi tipe baru).
+                fallback_default = DEFAULT_CHART_PER_TYPE.get(question_type, chart_options[0])
+                default_chart = a.get("suggested_chart") if a.get("suggested_chart") in chart_options else fallback_default
                 picked_chart = st.selectbox(
                     "Tipe Chart", chart_options,
                     index=chart_options.index(default_chart) if default_chart in chart_options else 0,
