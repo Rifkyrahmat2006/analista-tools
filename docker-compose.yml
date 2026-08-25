@@ -31,6 +31,13 @@ services:
       # Bind ke localhost saja — akses eksternal via reverse proxy / Tailscale
       # Serve, jangan expose port 8501 langsung ke 0.0.0.0/LAN.
       - "127.0.0.1:8501:8501"
+    extra_hosts:
+      # PENTING: di Linux, host.docker.internal TIDAK otomatis ter-resolve
+      # (beda dgn Docker Desktop macOS/Windows) — baris ini wajib supaya
+      # container bisa panggil layanan yg jalan di HOST (bukan container
+      # lain), misalnya 9Router (AI gateway) yg listen di 127.0.0.1:20128
+      # pada host. Dipakai oleh utils/ai_generate.py.
+      - "host.docker.internal:host-gateway"
     volumes:
       # Volume persisten: dataset yang diupload & cache. Data USER/ROLE/AUDIT
       # sekarang di Postgres (volume analista_pgdata), bukan di sini lagi.
@@ -38,6 +45,7 @@ services:
     environment:
       - TZ=Asia/Jakarta
       - DATABASE_URL=postgresql://analista:${POSTGRES_PASSWORD}@postgres:5432/analista_tools
+      - NINEROUTER_API_KEY=${NINEROUTER_API_KEY}
 
   cloudflared:
     image: cloudflare/cloudflared:latest

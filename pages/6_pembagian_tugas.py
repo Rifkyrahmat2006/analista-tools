@@ -23,6 +23,7 @@ from utils.multi_select_analysis import get_multiple_choice_preview
 from utils.theme import get_light_plotly_layout
 from utils.wordcloud_ui import render_wordcloud_section
 from utils.colorscale_hover import get_all_scale_preview_colors, render_colorscale_hover_preview
+from utils.ai_generate import generate_conclusion_draft, build_data_summary, build_opentext_summary
 
 st.set_page_config(page_title="Pembagian Tugas", layout="wide")
 inject_theme_css()
@@ -219,6 +220,25 @@ with tab_my:
             else:
                 st.markdown(f"### :material/cloud: Wordcloud — {a['column_name']}")
                 render_wordcloud_section(df, a["column_name"], key_prefix=f"my_wc_{a['id']}")
+
+                # PERMINTAAN USER: tombol generate draft kesimpulan dengan
+                # AI dipindah jadi SATU lokasi saja, tepat di atas textarea
+                # Kesimpulan (lihat bagian form status/kesimpulan di bawah)
+                # -- bukan di sini lagi. Di sini kita cuma SIMPAN bahan
+                # (data_summary) ke session_state kalau wordcloud sudah
+                # di-generate, supaya tombol di bawah tahu ada bahan siap
+                # pakai. top_kw ini agregat kata kunci, BUKAN jawaban
+                # mentah individual mahasiswa (aman dikirim ke API AI
+                # pihak ketiga, lihat utils/ai_generate.py).
+                top_kw_key = f"my_wc_{a['id']}_last_top_kw"
+                if top_kw_key in st.session_state:
+                    st.session_state[f"my_ai_summary_{a['id']}"] = (
+                        build_opentext_summary(st.session_state[top_kw_key]),
+                        question_type,
+                    )
+                else:
+                    st.session_state.pop(f"my_ai_summary_{a['id']}", None)
+                    st.info(":material/info: Klik **Generate Wordcloud** di atas dulu agar tombol Generate Draft Kesimpulan dengan AI (di bawah) bisa dipakai.")
         elif a["column_name"] not in df.columns:
             st.warning(f":material/warning: Kolom **{a['column_name']}** tidak ditemukan di dataset aktif.")
         else:
@@ -318,6 +338,20 @@ with tab_my:
                         key=f"my_hover_{a['id']}",
                     )
 
+                    # PERMINTAAN USER: tombol generate draft kesimpulan
+                    # dengan AI dipindah jadi SATU lokasi saja, tepat di
+                    # atas textarea Kesimpulan (lihat bagian form status/
+                    # kesimpulan di bawah) -- bukan di sini lagi. Di sini
+                    # kita cuma SIMPAN bahan (data_summary, hasil agregat
+                    # value/count/percent dari build_full_chart(), BUKAN
+                    # dataframe mentah/jawaban individual) ke session_state
+                    # supaya tombol di bawah tahu ada bahan siap pakai.
+                    display_result_for_ai = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
+                    st.session_state[f"my_ai_summary_{a['id']}"] = (
+                        build_data_summary(display_result_for_ai, built["val_col"], built["count_col"]),
+                        question_type,
+                    )
+
                     if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key=f"my_static_btn_{a['id']}"):
                         try:
                             display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
@@ -366,12 +400,49 @@ with tab_my:
             index=status_options.index(current_status),
             key=f"my_status_{a['id']}",
         )
+        # PENTING (pitfall Streamlit yang mudah terlewat): kalau widget
+        # dgn `key` tertentu SUDAH PERNAH dirender sebelumnya di sesi ini,
+        # parameter `value=` pada render BERIKUTNYA diabaikan Streamlit —
+        # widget akan selalu pakai nilai dari session_state[key] miliknya
+        # sendiri, BUKAN value= yang baru kita kasih. Fix: set
+        # session_state[key] SECARA LANGSUNG SEBELUM widget dibuat.
+        conclusion_key = f"my_conclusion_{a['id']}"
+        if conclusion_key not in st.session_state:
+            st.session_state[conclusion_key] = a.get("conclusion_text") or ""
+
+        # PITFALL KEDUA (ditemukan lewat testing browser sungguhan): kalau
+        # tombol "Generate dengan AI" ditaruh SETELAH text_area (sesuai
+        # permintaan user: tombol di BAWAH textarea), maka pada saat tombol
+        # diklik widget text_area SUDAH ter-instantiated di run itu -->
+        # `st.session_state[conclusion_key] = text` LANGSUNG di sini akan
+        # crash StreamlitAPIException ("cannot be modified after the widget
+        # ... is instantiated"). Fix: simpan draft ke key SEMENTARA lalu
+        # st.rerun() -- di run BERIKUTNYA (baris "if conclusion_key not in
+        # st.session_state" TIDAK relevan lagi, ganti jadi override
+        # eksplisit dari draft sementara) widget belum ter-instantiated
+        # sama sekali, jadi aman ditulis.
+        pending_draft_key = f"my_ai_pending_draft_{a['id']}"
+        if pending_draft_key in st.session_state:
+            st.session_state[conclusion_key] = st.session_state.pop(pending_draft_key)
+
         conclusion = st.text_area(
             "Kesimpulan (isi di sini, tidak perlu dokumen terpisah lagi)",
-            value=a.get("conclusion_text") or "",
-            key=f"my_conclusion_{a['id']}",
+            key=conclusion_key,
             height=120,
         )
+
+        ai_summary_key = f"my_ai_summary_{a['id']}"
+        if ai_summary_key in st.session_state:
+            if st.button(":material/auto_awesome: Generate Draft Kesimpulan dengan AI", key=f"my_ai_gen_{a['id']}"):
+                data_summary, ai_question_type = st.session_state[ai_summary_key]
+                with st.spinner("Menyusun draft narasi..."):
+                    success, text = generate_conclusion_draft(a["column_name"], data_summary, ai_question_type)
+                if success:
+                    st.session_state[pending_draft_key] = text
+                    st.success("Draft berhasil dibuat di atas! Cek & edit sebelum Simpan.")
+                    st.rerun()
+                else:
+                    st.error(f":material/error: {text}")
 
         if st.button(":material/save: Simpan", key=f"my_save_{a['id']}", type="primary"):
             update_assignment_progress(a["id"], new_status, conclusion)

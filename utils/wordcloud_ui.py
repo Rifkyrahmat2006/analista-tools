@@ -75,6 +75,14 @@ def render_wordcloud_section(df: pd.DataFrame, column: str, key_prefix: str, for
                 word_freq = analysis["word_freq"]
                 top_kw    = get_top_keywords(word_freq, top_n=top_n)
 
+            # Simpan hasil analisis ke session_state supaya bisa dipakai
+            # PEMANGGIL (mis. tombol "Generate Draft dengan AI" di
+            # pages/6_pembagian_tugas.py) TANPA perlu analisis ulang teks
+            # dari nol -- top_kw ini agregat kata kunci, BUKAN jawaban
+            # mentah individual mahasiswa (aman dikirim ke API AI pihak
+            # ketiga, lihat utils/ai_generate.py).
+            st.session_state[f"{key_prefix}_last_top_kw"] = top_kw
+
             c1, c2, c3 = st.columns(3)
             c1.metric("Total Respons", analysis["total_responses"])
             c2.metric("Total Kata", analysis["total_words"])
