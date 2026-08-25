@@ -323,6 +323,16 @@ def inject_theme_css() -> None:
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{accent.replace('#','%23')}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' x2='18' y1='20' y2='10'/%3E%3Cline x1='12' x2='12' y1='20' y2='4'/%3E%3Cline x1='6' x2='6' y1='20' y2='14'/%3E%3C/svg%3E");
         }}
 
+        /* Admin Users: ikon shield-user (badge admin/keamanan) */
+        [data-testid="stSidebarNav"] a[href$="admin_users"]::before {{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{accent.replace('#','%23')}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/%3E%3Ccircle cx='12' cy='11' r='2'/%3E%3Cpath d='M14 15c-.5-1-1.5-1.5-2-1.5s-1.5.5-2 1.5'/%3E%3C/svg%3E");
+        }}
+
+        /* Pembagian Tugas: ikon clipboard-check (papan tugas) */
+        [data-testid="stSidebarNav"] a[href$="pembagian_tugas"]::before {{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{accent.replace('#','%23')}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='8' height='4' x='8' y='2' rx='1' ry='1'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3Cpath d='m9 14 2 2 4-4'/%3E%3C/svg%3E");
+        }}
+
         /* ─── Active sidebar nav link: no highlight, only color change ─── */
         [data-testid="stSidebarNav"] div,
         [data-testid="stSidebarNav"] a,
