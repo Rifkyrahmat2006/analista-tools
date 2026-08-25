@@ -224,6 +224,32 @@ def _do_login(username: str, password: str) -> bool:
     return True
 
 
+def refresh_session_token() -> None:
+    """
+    Ganti token sesi browser SAAT INI dengan token baru — dipakai setelah
+    user ganti password sendiri (lihat pages/7_profile.py). Alurnya:
+    delete_all_sessions_for_user() di DB akan menghapus SEMUA token
+    (termasuk punya browser yang sedang dipakai user itu sendiri untuk
+    ganti password), jadi supaya user TIDAK ikut ke-logout di tab yang
+    sama, kita buat token session baru di sini dan tulis ulang cookie-nya
+    — mirip _do_login() tapi tanpa re-autentikasi (user sudah terverifikasi
+    lewat password lama di change_own_password()).
+    """
+    user_id = st.session_state.get("auth_user_id")
+    if not user_id:
+        return
+
+    new_token = create_session_token(user_id)
+    st.session_state["auth_session_token"] = new_token
+
+    controller = _get_cookie_controller()
+    controller.set(COOKIE_NAME, new_token, max_age=COOKIE_TTL_DAYS * 24 * 60 * 60)
+    # Sama seperti _do_login() — beri jeda supaya postMessage cookie sempat
+    # diproses browser sebelum rerun berikutnya membongkar komponennya.
+    import time
+    time.sleep(0.8)
+
+
 def logout() -> None:
     user = current_user()
     if user:
@@ -376,7 +402,7 @@ def require_role(*allowed_roles: str) -> dict:
 
 
 def render_user_badge_sidebar() -> None:
-    """Tampilkan info user + tombol logout di sidebar. Panggil di semua halaman."""
+    """Tampilkan foto profil (atau inisial) + info user + tombol logout di sidebar. Panggil di semua halaman."""
     user = current_user()
     if not user:
         return
@@ -400,8 +426,52 @@ def render_user_badge_sidebar() -> None:
 
     with st.sidebar:
         st.markdown("---")
-        role_emoji = {"superadmin": ":material/shield_person:", "admin": ":material/admin_panel_settings:", "staff": ":material/person:"}
-        st.caption(f"{role_emoji.get(user['role'], '')} **{user['full_name']}**  \n`{user['role']}`")
+        # NOTE: role_emoji di sini pakai emoji Unicode biasa (bukan sintaks
+        # :material/xxx: Streamlit) karena badge ini dirender lewat HTML
+        # mentah (st.markdown(unsafe_allow_html=True)) supaya avatar bisa
+        # digabung sebaris dengan nama — sintaks :material/...: HANYA
+        # di-convert otomatis oleh widget Streamlit native (st.caption,
+        # label tombol, dst), BUKAN di dalam markdown HTML mentah. Kalau
+        # dipaksa pakai :material/...: di sini, tampil sbg teks mentah
+        # (bug yang sempat ketemu & diperbaiki di sini).
+        role_emoji = {"superadmin": "🛡️", "admin": "🔰", "staff": "👤"}
+
+        # Foto profil kecil (avatar) di atas nama — fallback ke inisial
+        # kalau user belum upload foto. Data avatar di-cache di
+        # session_state supaya tidak query DB tiap render halaman (avatar
+        # jarang berubah, cukup di-refresh saat user ganti foto sendiri).
+        from utils.db import get_avatar
+        from utils.avatar import get_initials
+        import base64
+
+        avatar_cache_key = f"_avatar_cache_{user['id']}"
+        if avatar_cache_key not in st.session_state:
+            st.session_state[avatar_cache_key] = get_avatar(user["id"])
+        avatar = st.session_state[avatar_cache_key]
+
+        if avatar:
+            img_bytes, mime = avatar
+            b64_img = base64.b64encode(img_bytes).decode("utf-8")
+            avatar_html = f'<img src="data:{mime};base64,{b64_img}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;">'
+        else:
+            initials = get_initials(user["full_name"])
+            avatar_html = (
+                f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c8ff7,#a78bfa);'
+                f'color:white;font-weight:700;font-size:0.95rem;vertical-align:middle;margin-right:8px;">{initials}</span>'
+            )
+
+        st.markdown(
+            f'<div style="display:flex;align-items:center;margin-bottom:0.5rem;">'
+            f'{avatar_html}'
+            f'<div><strong>{user["full_name"]}</strong><br>'
+            f'<span style="font-size:0.78rem;opacity:0.7;">{role_emoji.get(user["role"], "")} {user["role"]}</span></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        if st.button(":material/manage_accounts: Profil Saya", use_container_width=True, key="sidebar_profile_btn"):
+            st.switch_page("pages/7_profile.py")
         if st.button(":material/logout: Logout", use_container_width=True, key="sidebar_logout_btn"):
             logout()
             st.rerun()

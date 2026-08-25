@@ -96,6 +96,13 @@ def init_db() -> None:
             )
         """)
 
+        # Migrasi kolom avatar_data (foto profil, disimpan sbg PNG/JPEG bytes
+        # langsung di DB — dataset user kecil, jadi tidak perlu object storage
+        # terpisah). ADD COLUMN IF NOT EXISTS aman dipanggil berkali-kali dan
+        # tidak menghapus data existing di tabel users yang sudah berjalan.
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data BYTEA")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_mime TEXT")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS audit_log (
                 id SERIAL PRIMARY KEY,
@@ -242,6 +249,57 @@ def update_user_role(user_id: int, new_role: str) -> None:
 def reset_user_password(user_id: int, new_plain_password: str) -> None:
     with db_cursor() as cur:
         cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(new_plain_password), user_id))
+
+
+def change_own_password(user_id: int, old_plain_password: str, new_plain_password: str) -> tuple:
+    """
+    Ganti password milik SENDIRI — beda dgn reset_user_password() (dipakai
+    admin utk reset password user LAIN, tidak perlu tahu password lama).
+    Di sini password lama WAJIB diverifikasi dulu, supaya orang yang
+    kebetulan lihat sesi browser user lain (belum logout) tidak bisa
+    seenaknya ganti password tanpa tahu password aslinya.
+
+    Return (success: bool, error_message: str atau None).
+    """
+    with db_cursor() as cur:
+        cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row:
+            return False, "Akun tidak ditemukan."
+        if not verify_password(old_plain_password, row["password_hash"]):
+            return False, "Password lama salah."
+        if len(new_plain_password) < 6:
+            return False, "Password baru minimal 6 karakter."
+        cur.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s",
+            (hash_password(new_plain_password), user_id),
+        )
+    return True, None
+
+
+def update_avatar(user_id: int, image_bytes: bytes, mime_type: str) -> None:
+    """Simpan/ganti foto profil user. image_bytes sudah dalam format final (lihat utils/avatar.py utk resize/compress)."""
+    with db_cursor() as cur:
+        cur.execute(
+            "UPDATE users SET avatar_data = %s, avatar_mime = %s WHERE id = %s",
+            (image_bytes, mime_type, user_id),
+        )
+
+
+def remove_avatar(user_id: int) -> None:
+    with db_cursor() as cur:
+        cur.execute("UPDATE users SET avatar_data = NULL, avatar_mime = NULL WHERE id = %s", (user_id,))
+
+
+def get_avatar(user_id: int) -> Optional[tuple]:
+    """Return (image_bytes, mime_type) atau None kalau user belum punya foto profil."""
+    with db_cursor() as cur:
+        cur.execute("SELECT avatar_data, avatar_mime FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row or not row["avatar_data"]:
+            return None
+        avatar_bytes = bytes(row["avatar_data"]) if not isinstance(row["avatar_data"], bytes) else row["avatar_data"]
+        return avatar_bytes, row["avatar_mime"] or "image/png"
 
 
 def delete_user(user_id: int) -> None:

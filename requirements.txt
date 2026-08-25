@@ -18,3 +18,4 @@ beautifulsoup4
 bcrypt
 streamlit-cookies-controller
 psycopg[binary]
+Pillow
