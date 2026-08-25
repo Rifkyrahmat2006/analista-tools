@@ -22,6 +22,7 @@ from utils.export_helpers import table_to_png, render_copy_button, generate_matp
 from utils.multi_select_analysis import get_multiple_choice_preview
 from utils.theme import get_light_plotly_layout
 from utils.wordcloud_ui import render_wordcloud_section
+from utils.colorscale_hover import get_all_scale_preview_colors, render_colorscale_hover_preview
 
 st.set_page_config(page_title="Pembagian Tugas", layout="wide")
 inject_theme_css()
@@ -304,6 +305,17 @@ with tab_my:
                     st.plotly_chart(
                         built["fig"], use_container_width=True, config={"displaylogo": False},
                         theme=None if force_light_mode else "streamlit", key=f"my_fig_{a['id']}",
+                    )
+                    # PERMINTAAN USER: hover pada opsi Color Scale di
+                    # dropdown -> chart langsung berubah warna secara
+                    # instan (client-side), tanpa perlu klik dulu. Lihat
+                    # utils/colorscale_hover.py utk detail cara kerja +
+                    # batasan (Treemap/Area/Line di-skip, cuma
+                    # Bar/Horizontal Bar/Pie/Donut yg didukung).
+                    scale_preview_colors = get_all_scale_preview_colors(built["n_cats"], PLOTLY_SCALE_MAP)
+                    render_colorscale_hover_preview(
+                        scale_preview_colors, picked_chart, built["colors"],
+                        key=f"my_hover_{a['id']}",
                     )
 
                     if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key=f"my_static_btn_{a['id']}"):
