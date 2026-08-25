@@ -338,6 +338,15 @@ def inject_theme_css() -> None:
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{accent.replace('#','%23')}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3Cpath d='M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662'/%3E%3C/svg%3E");
         }}
 
+        /* Info: ikon lingkaran "i" (halaman dashboard/info program,
+           duplikat dari app.py, sengaja ditaruh urutan terakhir sidebar
+           lewat prefix file 8_info.py -- app.py sendiri akan diganti
+           isinya jadi dashboard baru, halaman ini tetap simpan konten
+           lama "Fitur Utama/Alur Kerja/Mulai Cepat" sbg referensi info). */
+        [data-testid="stSidebarNav"] a[href$="info"]::before {{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{accent.replace('#','%23')}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");
+        }}
+
         /* ─── Active sidebar nav link: no highlight, only color change ─── */
         [data-testid="stSidebarNav"] div,
         [data-testid="stSidebarNav"] a,
