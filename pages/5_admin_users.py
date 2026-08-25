@@ -43,7 +43,16 @@ with tab_users:
         for u in users:
             manageable = can_manage_role(user["role"], u["role"]) or u["username"] == user["username"]
             with st.container(border=True):
-                c1, c2, c3, c4 = st.columns([3, 2, 2, 3])
+                # PERBAIKAN TAMPILAN (dari laporan bug user, lihat screenshot):
+                # baris info (nama/role/status) dan baris AKSI (toggle,
+                # role-selector, hapus) sekarang di baris terpisah — c1-c3
+                # untuk info, baris kedua full-width khusus tombol aksi.
+                # Sebelumnya tombol aksi dijejalkan sebagai 3 sub-kolom DI
+                # DALAM kolom ke-4 (dari 4 kolom total), jadi tiap tombol
+                # cuma dapat ~1/12 lebar container — teks "Nonaktifkan" dan
+                # konfirmasi hapus ("Yakin hapus akun...", "Ya, Hapus")
+                # ke-squeeze jadi satu-huruf-per-baris secara vertikal.
+                c1, c2, c3 = st.columns([3, 2, 2])
                 with c1:
                     st.markdown(f"**{u['full_name']}**  \n`{u['username']}`")
                 with c2:
@@ -53,60 +62,68 @@ with tab_users:
                     status = ":material/check_circle: Aktif" if u["active"] else ":material/cancel: Nonaktif"
                     st.markdown(status)
                     st.caption(f"Login terakhir: {u['last_login_at'] or 'Belum pernah'}")
-                with c4:
-                    if not can_manage_role(user["role"], u["role"]):
-                        st.caption(":material/lock: Anda tidak berwenang mengelola akun ini.")
-                    elif u["username"] == user["username"]:
-                        st.caption(":material/info: Ini akun Anda sendiri.")
-                    else:
-                        bcol1, bcol2, bcol3 = st.columns(3)
-                        with bcol1:
-                            toggle_label = "Nonaktifkan" if u["active"] else "Aktifkan"
-                            if st.button(toggle_label, key=f"toggle_{u['id']}", use_container_width=True):
-                                update_user_active(u["id"], not u["active"])
-                                if u["active"]:  # baru dinonaktifkan -> putus sesi login yg mungkin masih aktif
-                                    delete_all_sessions_for_user(u["id"])
-                                log_action(user["username"], user["role"], "toggle_user_active", f"{toggle_label} akun {u['username']}")
+
+                if not can_manage_role(user["role"], u["role"]):
+                    st.caption(":material/lock: Anda tidak berwenang mengelola akun ini.")
+                elif u["username"] == user["username"]:
+                    st.caption(":material/info: Ini akun Anda sendiri.")
+                else:
+                    # Baris aksi FULL-WIDTH (bukan sub-kolom di dalam kolom
+                    # sempit lagi) — masing-masing tombol dapat ruang yang
+                    # cukup lebar untuk teksnya sendiri.
+                    bcol1, bcol2, bcol3, bcol4 = st.columns([3, 3, 2, 2])
+                    with bcol1:
+                        toggle_label = "Nonaktifkan" if u["active"] else "Aktifkan"
+                        if st.button(toggle_label, key=f"toggle_{u['id']}", use_container_width=True):
+                            update_user_active(u["id"], not u["active"])
+                            if u["active"]:  # baru dinonaktifkan -> putus sesi login yg mungkin masih aktif
+                                delete_all_sessions_for_user(u["id"])
+                            log_action(user["username"], user["role"], "toggle_user_active", f"{toggle_label} akun {u['username']}")
+                            st.rerun()
+                    with bcol2:
+                        new_role = st.selectbox(
+                            "Role", ROLES, index=ROLES.index(u["role"]),
+                            key=f"role_{u['id']}", label_visibility="collapsed",
+                        )
+                    with bcol3:
+                        if new_role != u["role"] and can_manage_role(user["role"], new_role):
+                            if st.button("Simpan Role", key=f"save_role_{u['id']}", use_container_width=True):
+                                update_user_role(u["id"], new_role)
+                                log_action(user["username"], user["role"], "update_user_role", f"{u['username']}: {u['role']} -> {new_role}")
                                 st.rerun()
-                        with bcol2:
-                            new_role = st.selectbox(
-                                "Role", ROLES, index=ROLES.index(u["role"]),
-                                key=f"role_{u['id']}", label_visibility="collapsed",
-                            )
-                            if new_role != u["role"] and can_manage_role(user["role"], new_role):
-                                if st.button("Simpan Role", key=f"save_role_{u['id']}", use_container_width=True):
-                                    update_user_role(u["id"], new_role)
-                                    log_action(user["username"], user["role"], "update_user_role", f"{u['username']}: {u['role']} -> {new_role}")
-                                    st.rerun()
-                        with bcol3:
-                            if st.button("Hapus", key=f"delete_{u['id']}", use_container_width=True):
-                                st.session_state[f"confirm_delete_{u['id']}"] = True
+                    with bcol4:
+                        if st.button("Hapus", key=f"delete_{u['id']}", use_container_width=True):
+                            st.session_state[f"confirm_delete_{u['id']}"] = True
 
-                            if st.session_state.get(f"confirm_delete_{u['id']}"):
-                                st.warning(f"Yakin hapus akun **{u['username']}**? Tindakan ini permanen.")
-                                cc1, cc2 = st.columns(2)
-                                with cc1:
-                                    if st.button("Ya, Hapus", key=f"confirm_yes_{u['id']}", type="primary"):
-                                        delete_user(u["id"])
-                                        log_action(user["username"], user["role"], "delete_user", f"Hapus akun {u['username']}")
-                                        st.session_state.pop(f"confirm_delete_{u['id']}", None)
-                                        st.rerun()
-                                with cc2:
-                                    if st.button("Batal", key=f"confirm_no_{u['id']}"):
-                                        st.session_state.pop(f"confirm_delete_{u['id']}", None)
-                                        st.rerun()
+                # Konfirmasi hapus juga full-width, di luar struktur kolom
+                # di atas — supaya teks peringatan & tombol "Ya, Hapus"/
+                # "Batal" dapat lebar penuh baris, bukan terjepit lagi.
+                if can_manage_role(user["role"], u["role"]) and u["username"] != user["username"] \
+                        and st.session_state.get(f"confirm_delete_{u['id']}"):
+                    st.warning(f":material/warning: Yakin hapus akun **{u['username']}**? Tindakan ini permanen.")
+                    cc1, cc2, _cc_spacer = st.columns([2, 2, 5])
+                    with cc1:
+                        if st.button("Ya, Hapus", key=f"confirm_yes_{u['id']}", type="primary", use_container_width=True):
+                            delete_user(u["id"])
+                            log_action(user["username"], user["role"], "delete_user", f"Hapus akun {u['username']}")
+                            st.session_state.pop(f"confirm_delete_{u['id']}", None)
+                            st.rerun()
+                    with cc2:
+                        if st.button("Batal", key=f"confirm_no_{u['id']}", use_container_width=True):
+                            st.session_state.pop(f"confirm_delete_{u['id']}", None)
+                            st.rerun()
 
-                    if manageable and u["username"] != user["username"]:
-                        with st.expander(":material/key: Reset Password"):
-                            new_pw = st.text_input("Password baru", type="password", key=f"newpw_{u['id']}")
-                            if st.button("Reset", key=f"resetpw_{u['id']}"):
-                                if len(new_pw) < 8:
-                                    st.error("Password minimal 8 karakter.")
-                                else:
-                                    reset_user_password(u["id"], new_pw)
-                                    delete_all_sessions_for_user(u["id"])  # force-logout sesi lama
-                                    log_action(user["username"], user["role"], "reset_password", f"Reset password {u['username']}")
-                                    st.success("Password berhasil direset. Sesi login lama akun ini otomatis di-invalidate.")
+                if manageable and u["username"] != user["username"]:
+                    with st.expander(":material/key: Reset Password"):
+                        new_pw = st.text_input("Password baru", type="password", key=f"newpw_{u['id']}")
+                        if st.button("Reset", key=f"resetpw_{u['id']}"):
+                            if len(new_pw) < 8:
+                                st.error("Password minimal 8 karakter.")
+                            else:
+                                reset_user_password(u["id"], new_pw)
+                                delete_all_sessions_for_user(u["id"])  # force-logout sesi lama
+                                log_action(user["username"], user["role"], "reset_password", f"Reset password {u['username']}")
+                                st.success("Password berhasil direset. Sesi login lama akun ini otomatis di-invalidate.")
 
 # ─────────────────────────────────────────────────────────────
 with tab_create:
