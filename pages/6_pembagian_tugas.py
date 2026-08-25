@@ -221,42 +221,43 @@ with tab_my:
         elif a["column_name"] not in df.columns:
             st.warning(f":material/warning: Kolom **{a['column_name']}** tidak ditemukan di dataset aktif.")
         else:
-            # ── Panel Pengaturan Chart (selengkap halaman Visualization) ──
-            with st.expander(":material/palette: Pengaturan Chart", expanded=True):
-                pc1, pc2, pc3 = st.columns(3)
-                with pc1:
-                    chart_options = CHART_OPTIONS_PER_TYPE.get(question_type, ["Bar Chart"])
-                    default_chart = DEFAULT_CHART_PER_TYPE.get(question_type, chart_options[0])
-                    picked_chart = st.selectbox(
-                        "Tipe Chart", chart_options,
-                        index=chart_options.index(default_chart) if default_chart in chart_options else 0,
-                        key=f"my_chart_type_{a['id']}",
-                    )
-                with pc2:
-                    chart_theme_display = st.selectbox(
-                        "Color Scale", COLOR_SCALES, index=0,
-                        key=f"my_colorscale_{a['id']}",
-                        format_func=lambda x: f"{SCALE_EMOJIS.get(x, '●')} {x}",
-                    )
-                    chart_theme = PLOTLY_SCALE_MAP.get(chart_theme_display, chart_theme_display)
-                with pc3:
-                    bar_sort = st.radio(":material/sort: Urutan", ["Default", "asc", "desc"], index=0,
-                                         key=f"my_sort_{a['id']}", horizontal=True)
+            # ── Layout 2 kolom (settings kiri, tampilan kanan) — sama
+            # seperti pola wordcloud, biar konsisten & user tidak perlu
+            # scroll panjang buka-tutup expander untuk lihat hasil.
+            col_config, col_preview = st.columns([1, 2])
 
+            with col_config:
+                st.markdown("#### :material/settings: Pengaturan Chart")
+                chart_options = CHART_OPTIONS_PER_TYPE.get(question_type, ["Bar Chart"])
+                default_chart = DEFAULT_CHART_PER_TYPE.get(question_type, chart_options[0])
+                picked_chart = st.selectbox(
+                    "Tipe Chart", chart_options,
+                    index=chart_options.index(default_chart) if default_chart in chart_options else 0,
+                    key=f"my_chart_type_{a['id']}",
+                )
+                chart_theme_display = st.selectbox(
+                    "Color Scale", COLOR_SCALES, index=0,
+                    key=f"my_colorscale_{a['id']}",
+                    format_func=lambda x: f"{SCALE_EMOJIS.get(x, '●')} {x}",
+                )
+                chart_theme = PLOTLY_SCALE_MAP.get(chart_theme_display, chart_theme_display)
+                bar_sort = st.radio(":material/sort: Urutan", ["Default", "asc", "desc"], index=0,
+                                     key=f"my_sort_{a['id']}", horizontal=True)
+
+                st.markdown("---")
                 use_solid_color = st.checkbox(":material/format_paint: Warna Solid (Bar Chart)", value=False, key=f"my_solid_ck_{a['id']}")
                 solid_color = st.color_picker("Pilih Warna", value="#4169e1", key=f"my_solid_{a['id']}") if use_solid_color else None
 
-                lbl_c1, lbl_c2, lbl_c3 = st.columns(3)
-                show_count   = lbl_c1.checkbox("Nilai", value=True, key=f"my_showcount_{a['id']}")
-                show_percent = lbl_c2.checkbox("Persen", value=True, key=f"my_showpercent_{a['id']}")
-                show_name    = lbl_c3.checkbox("Nama", value=False, key=f"my_showname_{a['id']}")
-
+                st.markdown("---")
+                st.caption("Label")
+                show_count   = st.checkbox("Nilai", value=True, key=f"my_showcount_{a['id']}")
+                show_percent = st.checkbox("Persen", value=True, key=f"my_showpercent_{a['id']}")
+                show_name    = st.checkbox("Nama", value=False, key=f"my_showname_{a['id']}")
                 text_position = st.radio("Posisi Label", ["outside", "inside", "auto"], index=0, horizontal=True, key=f"my_textpos_{a['id']}")
+                label_size = st.slider("Ukuran Font", 8, 28, 13, step=1, key=f"my_labelsize_{a['id']}")
+                label_bold = st.checkbox("Bold", value=False, key=f"my_labelbold_{a['id']}")
 
-                lbl_sz_col, lbl_bd_col = st.columns([2, 1])
-                label_size = lbl_sz_col.slider("Ukuran Font", 8, 28, 13, step=1, key=f"my_labelsize_{a['id']}")
-                label_bold = lbl_bd_col.checkbox("Bold", value=False, key=f"my_labelbold_{a['id']}")
-
+                st.markdown("---")
                 show_legend = st.checkbox("Tampilkan Legenda", value=False, key=f"my_legend_ck_{a['id']}")
                 legend_cfg = dict(x=1.02, y=1, xanchor="left", yanchor="top") if show_legend else {}
 
@@ -267,6 +268,7 @@ with tab_my:
                 mc_delimiter = ","
                 mc_main_options = None
                 if question_type == "multiple_choice":
+                    st.markdown("---")
                     mc_delimiter = st.text_input(
                         "Karakter Pemisah (Delimiter)", value=",", key=f"my_delim_{a['id']}",
                         help="Ganti menjadi ';' jika jawaban Anda sendiri mengandung koma."
@@ -294,53 +296,54 @@ with tab_my:
                 mc_delimiter=mc_delimiter, mc_main_options=mc_main_options,
             )
 
-            if built["fig"] is None or built["result"] is None or built["result"].empty:
-                st.info("Tidak ada data untuk ditampilkan pada kolom ini.")
-            else:
-                st.markdown(f"### :material/analytics: {chart_title}")
-                st.plotly_chart(
-                    built["fig"], use_container_width=True, config={"displaylogo": False},
-                    theme=None if force_light_mode else "streamlit", key=f"my_fig_{a['id']}",
-                )
+            with col_preview:
+                if built["fig"] is None or built["result"] is None or built["result"].empty:
+                    st.info("Tidak ada data untuk ditampilkan pada kolom ini.")
+                else:
+                    st.markdown(f"### :material/analytics: {chart_title}")
+                    st.plotly_chart(
+                        built["fig"], use_container_width=True, config={"displaylogo": False},
+                        theme=None if force_light_mode else "streamlit", key=f"my_fig_{a['id']}",
+                    )
 
-                if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key=f"my_static_btn_{a['id']}"):
-                    try:
+                    if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key=f"my_static_btn_{a['id']}"):
+                        try:
+                            display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
+                            png_bytes = generate_matplotlib_chart(
+                                chart_type=picked_chart, df=built["result"],
+                                val_col=built["val_col"], count_col=built["count_col"],
+                                colors=built["colors"], title=chart_title,
+                                solid_color=solid_color if use_solid_color else None,
+                                text_col="_text" if "_text" in built["result"].columns else None,
+                            )
+                            render_copy_button(png_bytes, "Copy Chart PNG", key=f"my_copy_chart_{a['id']}")
+                            st.image(png_bytes, caption=f"{chart_title} (Copyable PNG)")
+                        except Exception as e:
+                            st.error(f"Gagal mem-generate gambar statis. Error: {e}")
+
+                    st.markdown("---")
+                    with st.container(border=True):
+                        st.markdown("#### :material/table_chart: Data Table Preview")
                         display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
-                        png_bytes = generate_matplotlib_chart(
-                            chart_type=picked_chart, df=built["result"],
-                            val_col=built["val_col"], count_col=built["count_col"],
-                            colors=built["colors"], title=chart_title,
-                            solid_color=solid_color if use_solid_color else None,
-                            text_col="_text" if "_text" in built["result"].columns else None,
-                        )
-                        render_copy_button(png_bytes, "Copy Chart PNG", key=f"my_copy_chart_{a['id']}")
-                        st.image(png_bytes, caption=f"{chart_title} (Copyable PNG)")
-                    except Exception as e:
-                        st.error(f"Gagal mem-generate gambar statis. Error: {e}")
+                        st.dataframe(display_result, use_container_width=True, hide_index=True)
+                        try:
+                            table_png = table_to_png(display_result, title="")
+                            render_copy_button(table_png, "Copy Table PNG", key=f"my_copy_table_{a['id']}")
+                            with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
+                                st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
+                                st.image(table_png)
+                        except Exception as e:
+                            st.warning(f":material/warning: Gagal membuat gambar tabel: {e}")
 
-                st.markdown("---")
-                with st.container(border=True):
-                    st.markdown("#### :material/table_chart: Data Table Preview")
-                    display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
-                    st.dataframe(display_result, use_container_width=True, hide_index=True)
-                    try:
-                        table_png = table_to_png(display_result, title="")
-                        render_copy_button(table_png, "Copy Table PNG", key=f"my_copy_table_{a['id']}")
-                        with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
-                            st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
-                            st.image(table_png)
-                    except Exception as e:
-                        st.warning(f":material/warning: Gagal membuat gambar tabel: {e}")
-
-                st.markdown("### :material/download: Ekspor Data")
-                xlsx_data = df_to_xlsx_bytes(display_result)
-                st.download_button(
-                    label=":material/table: Download Tabel (XLSX)",
-                    data=xlsx_data,
-                    file_name=f"{a['column_name']}_analisis.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"my_xlsx_{a['id']}",
-                )
+                    st.markdown("### :material/download: Ekspor Data")
+                    xlsx_data = df_to_xlsx_bytes(display_result)
+                    st.download_button(
+                        label=":material/table: Download Tabel (XLSX)",
+                        data=xlsx_data,
+                        file_name=f"{a['column_name']}_analisis.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"my_xlsx_{a['id']}",
+                    )
 
         st.markdown("---")
 
