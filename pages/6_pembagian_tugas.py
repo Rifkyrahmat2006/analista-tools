@@ -11,7 +11,7 @@ from utils.permissions import require_permission, has_permission
 from utils.db import (
     init_db, list_users, upsert_survey_questions, list_survey_questions,
     assign_question, update_assignment_progress, get_my_assignments, log_action,
-    QUESTION_TYPE_TO_CHART,
+    QUESTION_TYPE_TO_CHART, update_question_type_chart,
 )
 from utils.question_detection import detect_question_type
 from utils.chart_builder import (
@@ -78,6 +78,10 @@ if tab_setup is not None:
 
         st.markdown("---")
         st.markdown("### 2. Assign Pertanyaan ke Anggota Tim")
+        st.caption(
+            "Tipe & Chart terisi otomatis dari hasil deteksi -- sesuaikan lagi lewat dropdown "
+            "kalau deteksi otomatis kurang tepat untuk pertanyaan tertentu."
+        )
 
         questions = list_survey_questions(dataset_name)
         if not questions:
@@ -87,13 +91,70 @@ if tab_setup is not None:
             user_options = {"(belum ditugaskan)": None}
             user_options.update({f"{u['full_name']} ({u['username']})": u["id"] for u in all_users})
 
+            # PERMINTAAN USER: dropdown Tipe Pertanyaan -- deteksi otomatis
+            # tetap jadi nilai default (index awal), tapi bisa dikoreksi
+            # manual kalau kurang tepat (mis. kolom numerik yg sebenarnya
+            # open_text, atau sebaliknya). "skip" sengaja tidak
+            # ditampilkan sebagai pilihan -- kalau memang mau di-skip,
+            # cukup jangan di-assign ke siapapun (soal skip tidak relevan
+            # utk fitur pembagian tugas/chart).
+            TYPE_OPTIONS = ["single_choice", "multiple_choice", "scale", "open_text"]
+            TYPE_LABELS = {
+                "single_choice": "Single Choice", "multiple_choice": "Multiple Choice",
+                "scale": "Scale", "open_text": "Open Text",
+            }
+
+            # Tampilkan toast SEKALI setelah rerun dari klik Simpan --
+            # lihat penjelasan lengkap di bawah tombol Simpan kenapa toast
+            # tidak bisa langsung dipanggil sebelum st.rerun().
+            _pending_toast = st.session_state.pop("_setup_save_toast", None)
+            if _pending_toast:
+                st.toast(_pending_toast, icon=":material/check_circle:")
+
             for q in questions:
                 with st.container(border=True):
-                    c1, c2, c3 = st.columns([4, 2, 2])
+                    c1, c2, c3, c4 = st.columns([3, 1.6, 1.6, 2])
                     with c1:
                         st.markdown(f"**{q['column_name']}**")
-                        st.caption(f"Tipe: `{q['question_type']}` → Chart disarankan: **{q['suggested_chart']}**")
+                        status_badge = {
+                            "belum_dikerjakan": ":material/radio_button_unchecked: Belum dikerjakan",
+                            "dikerjakan": ":material/pending: Dikerjakan",
+                            "selesai": ":material/check_circle: Selesai",
+                        }.get(q.get("status") or "belum_dikerjakan", "")
+                        st.caption(status_badge)
                     with c2:
+                        current_type = q.get("question_type") if q.get("question_type") in TYPE_OPTIONS else TYPE_OPTIONS[0]
+                        picked_type = st.selectbox(
+                            "Tipe", TYPE_OPTIONS,
+                            index=TYPE_OPTIONS.index(current_type),
+                            key=f"qtype_{q['id']}", label_visibility="collapsed",
+                            format_func=lambda x: TYPE_LABELS.get(x, x),
+                        )
+                    with c3:
+                        if picked_type == "open_text":
+                            # Open text SELALU Wordcloud -- tidak ada
+                            # pilihan chart lain yg relevan (sama seperti
+                            # halaman Visualization & Tugas Saya).
+                            st.selectbox(
+                                "Chart", ["Wordcloud"], index=0,
+                                key=f"qchart_disabled_{q['id']}", label_visibility="collapsed", disabled=True,
+                            )
+                            picked_chart = "Wordcloud"
+                        else:
+                            chart_options = CHART_OPTIONS_PER_TYPE.get(picked_type, ["Bar Chart"])
+                            # Chart tersimpan sebelumnya mungkin dari
+                            # QUESTION_TYPE_TO_CHART (format lama, mis.
+                            # "Pie / Bar Chart") -- BUKAN salah satu opsi
+                            # persis di CHART_OPTIONS_PER_TYPE, jadi fallback
+                            # ke default chart tipe itu kalau tidak match persis.
+                            default_chart = DEFAULT_CHART_PER_TYPE.get(picked_type, chart_options[0])
+                            current_chart = q.get("suggested_chart") if q.get("suggested_chart") in chart_options else default_chart
+                            picked_chart = st.selectbox(
+                                "Chart", chart_options,
+                                index=chart_options.index(current_chart),
+                                key=f"qchart_{q['id']}", label_visibility="collapsed",
+                            )
+                    with c4:
                         current_assignee_label = "(belum ditugaskan)"
                         for label, uid in user_options.items():
                             if uid == q.get("assigned_to"):
@@ -104,17 +165,28 @@ if tab_setup is not None:
                             index=list(user_options.keys()).index(current_assignee_label),
                             key=f"assign_{q['id']}", label_visibility="collapsed",
                         )
-                    with c3:
-                        if st.button("Simpan", key=f"save_assign_{q['id']}", use_container_width=True):
-                            assign_question(q["id"], user_options[selected], user["username"])
-                            log_action(user["username"], user["role"], "assign_question", f"'{q['column_name']}' -> {selected}")
-                            st.rerun()
-                        status_badge = {
-                            "belum_dikerjakan": ":material/radio_button_unchecked: Belum dikerjakan",
-                            "dikerjakan": ":material/pending: Dikerjakan",
-                            "selesai": ":material/check_circle: Selesai",
-                        }.get(q.get("status") or "belum_dikerjakan", "")
-                        st.caption(status_badge)
+
+                    if st.button(":material/save: Simpan", key=f"save_assign_{q['id']}", use_container_width=True):
+                        update_question_type_chart(q["id"], picked_type, picked_chart)
+                        assign_question(q["id"], user_options[selected], user["username"])
+                        log_action(
+                            user["username"], user["role"], "assign_question",
+                            f"'{q['column_name']}' -> tipe={picked_type}, chart={picked_chart}, assignee={selected}",
+                        )
+                        # PERMINTAAN USER: notifikasi konfirmasi tersimpan.
+                        # PENTING: st.toast() dipanggil SEBELUM st.rerun()
+                        # akan LANGSUNG HILANG krn st.rerun() membongkar
+                        # seluruh DOM halaman saat ini (toast Streamlit
+                        # adalah elemen UI biasa, bukan notifikasi browser
+                        # native yg independen dari render) -- makanya
+                        # simpan pesannya ke session_state dulu, lalu
+                        # tampilkan toast di render BERIKUTNYA (blok
+                        # _pending_toast di atas loop for ini), supaya
+                        # toast benar-benar sempat terlihat user.
+                        st.session_state["_setup_save_toast"] = f"'{q['column_name']}' tersimpan!"
+                        st.rerun()
+
+
 
 # ─────────────────────────────────────────────────────────────
 if tab_board is not None:

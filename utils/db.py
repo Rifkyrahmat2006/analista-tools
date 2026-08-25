@@ -409,6 +409,21 @@ def get_audit_log(limit: int = 200, username_filter: Optional[str] = None) -> Li
 # SURVEY QUESTIONS & TASK ASSIGNMENT (pengganti dokumen pembagian tugas)
 # ─────────────────────────────────────────────────────────────
 
+def update_question_type_chart(question_id: int, question_type: str, suggested_chart: str) -> None:
+    """
+    Update tipe pertanyaan & chart yang disarankan secara MANUAL (override
+    hasil deteksi otomatis). Dipakai di UI "Assign Pertanyaan ke Anggota
+    Tim" -- admin bisa koreksi kalau deteksi otomatis kurang tepat utk
+    pertanyaan tertentu (mis. kolom numerik yg sebenarnya open_text, atau
+    sebaliknya).
+    """
+    with db_cursor() as cur:
+        cur.execute(
+            "UPDATE survey_questions SET question_type = %s, suggested_chart = %s WHERE id = %s",
+            (question_type, suggested_chart, question_id),
+        )
+
+
 def upsert_survey_questions(dataset_name: str, questions: List[Dict]) -> int:
     """
     questions: list of dict {column_name, question_type, category (opsional)}
