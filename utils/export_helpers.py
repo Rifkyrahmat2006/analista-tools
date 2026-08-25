@@ -5,10 +5,47 @@ Always renders in LIGHT theme for print-readiness.
 """
 
 import io
+import re
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+
+def normalize_color(c):
+    """
+    Konversi warna dari format Plotly ('rgb(r,g,b)', 'rgba(r,g,b,a)') ke hex
+    yang bisa diterima matplotlib.
+
+    BUG YANG DIPERBAIKI (dilaporkan user — fitur "Copy PNG" di halaman
+    Visualization selalu gagal untuk color scale tertentu, mis. Viridis):
+    plotly.colors.sample_colorscale() mengembalikan warna dalam bentuk
+    string 'rgb(68, 1, 84)', BUKAN hex. matplotlib versi yang dipakai di
+    sini (3.11.1) TIDAK menerima format string itu untuk parameter
+    color=/facecolor= pada beberapa jenis plot (bar/pie) -> melempar
+    ValueError "'facecolor' or 'color' argument must be a valid color or
+    sequence of colors", yang di generate_matplotlib_chart() sebelumnya
+    cuma di-catch generik jadi pesan error tidak jelas ke user, atau di
+    tempat lain (fig_kw_exp) di-swallow total oleh `except: pass` — user
+    klik "Copy PNG" dan TIDAK TERJADI APA-APA tanpa penjelasan.
+
+    Warna yang sudah valid untuk matplotlib (hex '#rrggbb', nama warna
+    'red', 'blue', dst) diteruskan apa adanya — fungsi ini idempotent.
+    """
+    if not isinstance(c, str):
+        return c
+    m = re.match(r"rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)", c)
+    if not m:
+        return c  # sudah hex / nama warna valid / bentuk lain — biarkan
+    r, g, b = (max(0, min(255, float(v))) for v in m.groups()[:3])
+    return "#{:02x}{:02x}{:02x}".format(int(round(r)), int(round(g)), int(round(b)))
+
+
+def normalize_colors(colors):
+    """Terapkan normalize_color() ke tiap elemen list/tuple warna. None/falsy diteruskan apa adanya."""
+    if not colors:
+        return colors
+    return [normalize_color(c) for c in colors]
 
 
 def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes:
@@ -189,7 +226,12 @@ def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title,
     """
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(10, 6))
-    
+
+    # Normalisasi warna dari format Plotly ('rgb(r,g,b)') ke hex — lihat
+    # docstring normalize_color() untuk detail bug yang diperbaiki.
+    colors = normalize_colors(colors)
+    solid_color = normalize_color(solid_color) if solid_color else solid_color
+
     bg_color = "white"
     text_color = "black"
     fig.patch.set_facecolor(bg_color)

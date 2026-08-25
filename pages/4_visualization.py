@@ -487,7 +487,6 @@ with tab_charts:
                 st.plotly_chart(fig, use_container_width=use_container, config={"displaylogo": False}, theme=None if force_light_mode else "streamlit")
 
                 if st.button("📸 Tampilkan Gambar Statis (Untuk Copy-Paste ke Word)", key="btn_static_vis", help="Klik untuk membuat versi gambar statis dari grafik yang bisa di-copy paste."):
-                    st.info("💡 **Tips:** Klik kanan pada gambar grafik di bawah ini, lalu pilih **'Copy image'** dan Paste langsung di Microsoft Word atau presentasi Anda.")
                     try:
                         from utils.export_helpers import generate_matplotlib_chart
                         png_bytes = generate_matplotlib_chart(
@@ -500,6 +499,16 @@ with tab_charts:
                             solid_color=solid_color if use_solid_color else None,
                             text_col="_text" if "_text" in result.columns else None
                         )
+                        # Tombol "Copy PNG" langsung di sini — BUG YANG
+                        # DIPERBAIKI (dilaporkan user): sebelumnya cuma ada
+                        # instruksi klik-kanan-manual pada gambar, padahal
+                        # render_copy_button() (klik tombol -> langsung ke
+                        # clipboard via navigator.clipboard.write) sudah ada
+                        # di file ini dan dipakai di tempat lain (Table PNG,
+                        # Wordcloud PNG) tapi lupa dipasang di chart utama —
+                        # justru fitur yang paling sering dipakai malah masih
+                        # manual (klik kanan gambar -> copy image).
+                        render_copy_button(png_bytes, "Copy Chart PNG", key="copy_main_chart")
                         st.image(png_bytes, caption=f"{chart_title} (Copyable PNG)")
                     except Exception as e:
                         st.error(f"Gagal mem-generate gambar statis. Error: {e}")
@@ -517,7 +526,8 @@ with tab_charts:
                         with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
                             st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
                             st.image(table_png)
-                    except: pass
+                    except Exception as e:
+                        st.warning(f":material/warning: Gagal membuat gambar tabel: {e}")
 
                 # ── Export Section ──
                 st.markdown("### :material/download: Ekspor Data")
@@ -616,7 +626,17 @@ with tab_wordcloud:
                         with st.expander(":material/image: Tampilkan Gambar (Untuk Copy Manual)"):
                             st.info("Klik kanan pada gambar di bawah dan pilih **Copy Image** atau **Save Image As**.")
                             st.image(kw_png)
-                    except: pass
+                    except Exception as e:
+                        # BUG YANG DIPERBAIKI (dilaporkan user): `except: pass`
+                        # sebelumnya menyembunyikan error TOTAL — fitur "Copy
+                        # Chart PNG" untuk Top Keywords selalu gagal diam-diam
+                        # kalau package `kaleido` (dipakai fig.to_image())
+                        # tidak terinstall, tanpa pesan apapun ke user. Sudah
+                        # ditambahkan kaleido ke requirements.txt sebagai fix
+                        # utama; except ini sekarang tetap eksplisit + tampilkan
+                        # pesan supaya kalau suatu saat gagal lagi (mis. deploy
+                        # lupa rebuild), user tahu penyebabnya alih-alih diam.
+                        st.warning(f":material/warning: Gagal membuat gambar chart Top Keywords: {e}")
 
                     with st.expander(":material/table_chart: Lihat Tabel Kata"):
                         st.dataframe(top_kw, use_container_width=True, hide_index=True)
