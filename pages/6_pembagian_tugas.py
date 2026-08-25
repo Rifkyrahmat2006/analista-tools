@@ -280,7 +280,20 @@ with tab_my:
 
                 st.markdown("---")
                 show_legend = st.checkbox("Tampilkan Legenda", value=False, key=f"my_legend_ck_{a['id']}")
-                legend_cfg = dict(x=1.02, y=1, xanchor="left", yanchor="top") if show_legend else {}
+                if show_legend:
+                    legend_pos = st.selectbox(
+                        "Posisi Legenda", ["Right", "Bottom", "Top", "Left"], index=0, key=f"my_legend_pos_{a['id']}",
+                    )
+                    LEGEND_MAP = {
+                        "Right":  dict(x=1.02, y=1, xanchor="left", yanchor="top"),
+                        "Bottom": dict(x=0.5, y=-0.2, xanchor="center", yanchor="top", orientation="h"),
+                        "Top":    dict(x=0.5, y=1.1, xanchor="center", yanchor="bottom", orientation="h"),
+                        "Left":   dict(x=-0.2, y=1, xanchor="right", yanchor="top"),
+                    }
+                    legend_cfg = LEGEND_MAP[legend_pos]
+                else:
+                    legend_pos = "Right"
+                    legend_cfg = {}
 
                 custom_title = st.text_input("Override Judul", value="", placeholder=f"Contoh: {a['column_name']}", key=f"my_title_{a['id']}")
                 chart_height = st.slider("Tinggi Chart (px)", 300, 1500, 500, step=50, key=f"my_height_{a['id']}")
@@ -370,6 +383,12 @@ with tab_my:
                                 title=custom_title.strip(),
                                 solid_color=solid_color if use_solid_color else None,
                                 text_col="_text" if "_text" in built["result"].columns else None,
+                                # BUG DIPERBAIKI (dilaporkan user): gambar
+                                # statis sebelumnya tidak pernah ikut
+                                # menampilkan legenda walau chart interaktif
+                                # (Plotly) di atasnya sudah ada legendanya.
+                                show_legend=show_legend,
+                                legend_pos=legend_pos,
                             )
                             render_copy_button(png_bytes, "Copy Chart PNG", key=f"my_copy_chart_{a['id']}")
                             st.image(png_bytes, caption=f"{chart_title} (Copyable PNG)")

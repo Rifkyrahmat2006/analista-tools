@@ -231,7 +231,14 @@ def build_full_chart(
         _margin = compute_dynamic_margin("Line Chart", result[val_col].tolist())
 
     if fig:
-        fig.update_traces(textposition=text_position, textfont=dict(size=label_size))
+        # BUG DIPERBAIKI (sama dgn pages/4_visualization.py): Treemap
+        # crash ValueError kalau text_position (mis. "outside") diteruskan
+        # ke update_traces() -- Treemap Plotly cuma terima enum posisi
+        # berbeda ('top left' dst). Skip textposition khusus utk Treemap.
+        if chart_type != "Treemap":
+            fig.update_traces(textposition=text_position, textfont=dict(size=label_size))
+        else:
+            fig.update_traces(textfont=dict(size=label_size))
         fig.update_layout(height=chart_height, margin=_margin, showlegend=show_legend, title=chart_title)
         if chart_width > 0:
             fig.update_layout(width=chart_width)

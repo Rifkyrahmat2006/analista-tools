@@ -222,6 +222,7 @@ with st.sidebar:
         }
         legend_cfg = LEGEND_MAP[legend_pos]
     else:
+        legend_pos = "Right"
         legend_cfg = {}
 
     custom_title = st.text_input("Override Judul", value="", placeholder="Contoh: Distribusi Jawaban")
@@ -424,7 +425,17 @@ with tab_charts:
                 _margin = compute_dynamic_margin("Line Chart", result[val_col].tolist())
 
             if fig:
-                fig.update_traces(textposition=text_position, textfont=dict(size=label_size))
+                # BUG DIPERBAIKI (dilaporkan user): Treemap crash dengan
+                # ValueError saat text_position user (mis. "outside", nilai
+                # valid utk Bar/Pie) diteruskan ke fig.update_traces() --
+                # Treemap Plotly HANYA menerima textposition dari enum
+                # berbeda ('top left', 'middle center', dst), BUKAN
+                # 'outside'/'inside'/'auto'. Skip textposition utk Treemap,
+                # textfont (ukuran label) tetap boleh diset di semua tipe.
+                if chart_type != "Treemap":
+                    fig.update_traces(textposition=text_position, textfont=dict(size=label_size))
+                else:
+                    fig.update_traces(textfont=dict(size=label_size))
                 fig.update_layout(height=chart_height, margin=_margin, showlegend=show_legend)
                 if chart_width > 0: fig.update_layout(width=chart_width)
                 if show_legend: fig.update_layout(legend=legend_cfg)
@@ -450,7 +461,13 @@ with tab_charts:
                             # kosong -- itu yg bikin judul selalu muncul.
                             title=custom_title.strip(),
                             solid_color=solid_color if use_solid_color else None,
-                            text_col="_text" if "_text" in result.columns else None
+                            text_col="_text" if "_text" in result.columns else None,
+                            # BUG DIPERBAIKI (dilaporkan user): gambar
+                            # statis sebelumnya tidak pernah ikut
+                            # menampilkan legenda walau chart interaktif
+                            # (Plotly) di atasnya sudah ada legendanya.
+                            show_legend=show_legend,
+                            legend_pos=legend_pos,
                         )
                         # Tombol "Copy PNG" langsung di sini — BUG YANG
                         # DIPERBAIKI (dilaporkan user): sebelumnya cuma ada

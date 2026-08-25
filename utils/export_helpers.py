@@ -293,9 +293,21 @@ def export_oe_analysis(
     buf.seek(0)
     return buf.getvalue()
 
-def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title, solid_color=None, text_col=None):
+def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title, solid_color=None, text_col=None,
+                               show_legend=False, legend_pos="Right"):
     """
     Generate a static matplotlib chart based on the selected plot type for easy copy-pasting.
+
+    show_legend/legend_pos: BUG DIPERBAIKI (dilaporkan user) -- gambar
+    statis (PNG copy-paste) sebelumnya TIDAK PERNAH menggambar legenda
+    sama sekali, walau di chart interaktif Plotly legenda muncul kalau
+    checkbox "Tampilkan Legenda" dicentang. Untuk chart kategorikal (tiap
+    kategori/opsi punya warna sendiri: Bar/Horizontal Bar/Pie/Donut/
+    Treemap), legenda direplikasi via proxy Patch per label+warna --
+    matplotlib TIDAK otomatis membuat legend per-bar seperti Plotly
+    (semua ax.bar() dalam satu panggilan dianggap 1 "series").
+    Area/Line Chart dilewati (cuma 1 garis/area, tidak ada per-kategori
+    warna utk dilegenda-kan -- sama seperti perilaku Plotly aslinya).
     """
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -320,6 +332,8 @@ def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title,
                 plot_labels.append("")
             else:
                 plot_labels.append(str(txt).replace("<b>", "").replace("</b>", "").replace("<br>", "\n"))
+
+    is_categorical_chart = chart_type in ["Bar Chart", "Horizontal Bar", "Pie Chart", "Donut Chart", "Treemap"]
 
     if chart_type in ["Bar Chart", "Horizontal Bar"]:
         bar_colors = [solid_color] * len(df) if solid_color else colors
@@ -364,7 +378,25 @@ def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title,
         # & pages/6_pembagian_tugas.py: title=custom_title jika diisi,
         # else title="" -- BUKAN chart_title default spt "Bar Chart - Fakultas").
         ax.set_title(title, fontsize=14, pad=20, color=text_color)
-        
+
+    if show_legend and is_categorical_chart and colors:
+        from matplotlib.patches import Patch
+        legend_colors = [solid_color] * len(labels) if (solid_color and chart_type in ["Bar Chart", "Horizontal Bar"]) else colors
+        legend_handles = [Patch(facecolor=c, label=lbl) for c, lbl in zip(legend_colors, labels)]
+        # Posisi legenda meniru pilihan "Right/Bottom/Top/Left" di Plotly
+        # (lihat legend_pos di pages/4_visualization.py & 6_pembagian_tugas.py).
+        LEGEND_POS_MAP = {
+            "Right":  dict(loc="center left", bbox_to_anchor=(1.02, 0.5)),
+            "Bottom": dict(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=min(len(labels), 4)),
+            "Top":    dict(loc="lower center", bbox_to_anchor=(0.5, 1.08), ncol=min(len(labels), 4)),
+            "Left":   dict(loc="center right", bbox_to_anchor=(-0.02, 0.5)),
+        }
+        legend_kwargs = LEGEND_POS_MAP.get(legend_pos, LEGEND_POS_MAP["Right"])
+        legend = ax.legend(handles=legend_handles, fontsize=9, **legend_kwargs)
+        legend.get_frame().set_facecolor(bg_color)
+        for text in legend.get_texts():
+            text.set_color(text_color)
+
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_color(text_color)

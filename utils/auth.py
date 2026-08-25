@@ -474,4 +474,24 @@ def render_user_badge_sidebar() -> None:
             st.switch_page("pages/7_profile.py")
         if st.button(":material/logout: Logout", use_container_width=True, key="sidebar_logout_btn"):
             logout()
-            st.rerun()
+            # BUG DIPERBAIKI (dilaporkan user): sebelumnya st.rerun() biasa
+            # dipanggil di sini -- itu cuma minta Streamlit re-render dalam
+            # WebSocket session YANG SAMA, bukan reload browser sungguhan.
+            # Efeknya: komponen CookieController (custom component async,
+            # lihat penjelasan panjang di _get_cookie_controller/
+            # _restore_session_from_cookie) butuh BEBERAPA auto-rerun dari
+            # dirinya sendiri untuk resolve nilai cookie yang baru saja
+            # dihapus -- tapi itu TIDAK SELALU terjadi cukup cepat/andal,
+            # jadi halaman macet permanen di status "Memeriksa sesi
+            # login…" (bukan form login) sampai user me-refresh manual.
+            # Fix: paksa FULL BROWSER RELOAD via JS window.top.location.reload()
+            # (window.top krn komponen ini jalan di dalam iframe) -- ini
+            # membuat WebSocket session BARU dari nol yang langsung baca
+            # cookie browser yang sudah pasti kosong (delay 0.5s di
+            # logout() sudah memastikan itu), tanpa bergantung pada
+            # auto-rerun component yang rapuh.
+            import streamlit.components.v1 as components
+            components.html(
+                "<script>window.top.location.reload();</script>", height=0, width=0,
+            )
+            st.stop()
