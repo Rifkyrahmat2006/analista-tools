@@ -14,6 +14,8 @@ from utils.db import (
     QUESTION_TYPE_TO_CHART,
 )
 from utils.question_detection import detect_question_type
+from utils.chart_builder import build_quick_chart, CHART_OPTIONS_PER_TYPE, DEFAULT_CHART_PER_TYPE
+from utils.export_helpers import table_to_png, render_copy_button, generate_matplotlib_chart
 
 st.set_page_config(page_title="Pembagian Tugas", layout="wide")
 inject_theme_css()
@@ -149,15 +151,100 @@ if tab_board is not None:
 # ─────────────────────────────────────────────────────────────
 with tab_my:
     st.markdown("### Tugas Saya")
+    st.caption(
+        "Semua pertanyaan yang ditugaskan kepada Anda, lengkap dengan chart & tabel "
+        "analisis langsung di sini — tidak perlu pindah ke halaman Visualization dan "
+        "mencari kolomnya satu per satu."
+    )
     my_assignments = get_my_assignments(user["id"])
 
     if not my_assignments:
         st.info("Belum ada pertanyaan yang ditugaskan kepada Anda.")
     else:
+        # Ringkasan progres di atas — biar langsung kelihatan berapa yang
+        # sudah/belum dikerjakan tanpa scroll ke bawah satu-satu.
+        n_total_my = len(my_assignments)
+        n_done_my = sum(1 for a in my_assignments if (a.get("status") or "belum_dikerjakan") == "selesai")
+        n_progress_my = sum(1 for a in my_assignments if (a.get("status") or "belum_dikerjakan") == "dikerjakan")
+        mm1, mm2, mm3 = st.columns(3)
+        mm1.metric("Total Tugas Saya", n_total_my)
+        mm2.metric("Sedang Dikerjakan", n_progress_my)
+        mm3.metric("Selesai", n_done_my)
+        st.progress(n_done_my / n_total_my if n_total_my else 0)
+        st.markdown("---")
+
         for a in my_assignments:
             with st.container(border=True):
                 st.markdown(f"#### {a['column_name']}")
                 st.caption(f"Dataset: `{a['dataset_name']}` · Tipe: `{a['question_type']}` · Chart disarankan: **{a['suggested_chart']}**")
+
+                # ── Chart & Tabel langsung di sini (BARU) ──
+                # BUG/PERMINTAAN YANG DIPENUHI: sebelumnya tab ini cuma
+                # menampilkan status + kolom kesimpulan teks — untuk
+                # benar-benar MELIHAT datanya (chart, angka), user harus
+                # pindah ke halaman Visualization dan cari kolom yang sama
+                # secara manual dari dropdown. Sekarang chart & tabel
+                # langsung dirender di sini, memakai dataset yang sedang
+                # aktif di session (st.session_state.df) — kalau dataset
+                # aktif beda dari dataset saat pertanyaan itu didaftarkan,
+                # kasih tahu user supaya upload/pilih dataset yang benar.
+                question_type = a.get("question_type")
+                if a["dataset_name"] != dataset_name:
+                    st.warning(
+                        f":material/warning: Pertanyaan ini terdaftar untuk dataset **{a['dataset_name']}**, "
+                        f"sedangkan dataset aktif saat ini adalah **{dataset_name}**. "
+                        "Upload/pilih ulang dataset yang sesuai untuk melihat chart & tabelnya."
+                    )
+                elif question_type == "open_text":
+                    st.info(
+                        ":material/text_fields: Pertanyaan ini bertipe **open text** (jawaban bebas) — "
+                        "gunakan tab **Wordcloud** di halaman Visualization untuk analisis kata kunci & wordcloud-nya."
+                    )
+                elif a["column_name"] not in df.columns:
+                    st.warning(f":material/warning: Kolom **{a['column_name']}** tidak ditemukan di dataset aktif.")
+                else:
+                    chart_options = CHART_OPTIONS_PER_TYPE.get(question_type, ["Bar Chart"])
+                    default_chart = DEFAULT_CHART_PER_TYPE.get(question_type, chart_options[0])
+                    picked_chart = st.selectbox(
+                        "Tipe Chart", chart_options,
+                        index=chart_options.index(default_chart) if default_chart in chart_options else 0,
+                        key=f"my_chart_type_{a['id']}",
+                        label_visibility="collapsed",
+                    )
+
+                    built = build_quick_chart(df, a["column_name"], question_type, chart_type=picked_chart, title=a["column_name"])
+                    if built["fig"] is None or built["result"] is None or built["result"].empty:
+                        st.info("Tidak ada data untuk ditampilkan pada kolom ini.")
+                    else:
+                        st.plotly_chart(built["fig"], use_container_width=True, config={"displaylogo": False}, key=f"my_fig_{a['id']}")
+
+                        cpng1, cpng2 = st.columns([1, 1])
+                        with cpng1:
+                            if st.button(":material/photo_camera: Buat Gambar Statis", key=f"my_static_{a['id']}", use_container_width=True):
+                                st.session_state[f"my_show_static_{a['id']}"] = True
+                        if st.session_state.get(f"my_show_static_{a['id']}"):
+                            try:
+                                display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
+                                png_bytes = generate_matplotlib_chart(
+                                    chart_type=built["chart_type"], df=built["result"],
+                                    val_col=built["val_col"], count_col=built["count_col"],
+                                    colors=built["colors"], title=a["column_name"],
+                                )
+                                render_copy_button(png_bytes, "Copy Chart PNG", key=f"my_copy_chart_{a['id']}")
+                                st.image(png_bytes, caption=f"{a['column_name']} (Copyable PNG)")
+                            except Exception as e:
+                                st.warning(f":material/warning: Gagal membuat gambar statis: {e}")
+
+                        with st.expander(":material/table_chart: Lihat Tabel Data"):
+                            display_result = built["result"].drop(columns=["_text", "_disp_label"], errors="ignore")
+                            st.dataframe(display_result, use_container_width=True, hide_index=True)
+                            try:
+                                table_png = table_to_png(display_result, title="")
+                                render_copy_button(table_png, "Copy Table PNG", key=f"my_copy_table_{a['id']}")
+                            except Exception as e:
+                                st.warning(f":material/warning: Gagal membuat gambar tabel: {e}")
+
+                st.markdown("---")
 
                 status_options = ["belum_dikerjakan", "dikerjakan", "selesai"]
                 current_status = a.get("status") or "belum_dikerjakan"

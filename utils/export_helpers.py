@@ -48,6 +48,79 @@ def normalize_colors(colors):
     return [normalize_color(c) for c in colors]
 
 
+def render_copy_button(png_bytes: bytes, label: str = "Copy PNG", key: str = "copy"):
+    """
+    Render tombol "Copy PNG" yang langsung menyalin gambar ke clipboard
+    (klik tombol -> navigator.clipboard.write, tidak perlu klik-kanan
+    manual pada gambar). Dipindah ke sini dari pages/4_visualization.py
+    supaya bisa dipakai ulang di halaman lain (mis. Pembagian Tugas /
+    Tugas Saya) tanpa import lintas-halaman Streamlit (yang akan
+    menjalankan ulang seluruh kode UI halaman itu — tidak aman).
+
+    CATATAN (lihat juga skill/README project): tombol ini butuh halaman
+    dimuat via HTTPS — navigator.clipboard API diblokir browser di
+    halaman HTTP biasa (non-secure context). Kalau tombol selalu gagal
+    dengan pesan "Gunakan Download", cek dulu address bar browser ada
+    ikon gembok/HTTPS, bukan soal kode di sini.
+    """
+    import base64
+    import streamlit.components.v1 as components
+    b64_img = base64.b64encode(png_bytes).decode('utf-8')
+    safe_key = key.replace(" ", "_").lower()
+    html_code = f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600&display=swap');
+    body {{ margin: 0; padding: 0; display: flex; justify-content: flex-start; }}
+    button {{
+        background-color: transparent;
+        border: 1px solid rgba(124, 143, 247, 0.5);
+        color: #7c8ff7;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }}
+    button:hover {{ border-color: #7c8ff7; background-color: rgba(124, 143, 247, 0.15); }}
+    .icon {{ width: 16px; height: 16px; fill: currentColor; }}
+    </style>
+    <button id="btn_{safe_key}" onclick="copyImg_{safe_key}()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        <span id="txt_{safe_key}">{label}</span>
+    </button>
+    <script>
+    async function copyImg_{safe_key}() {{
+        const btn = document.getElementById('btn_{safe_key}');
+        try {{
+            const res = await fetch('data:image/png;base64,{b64_img}');
+            const blob = await res.blob();
+            const item = new ClipboardItem({{ [blob.type]: blob }});
+            await navigator.clipboard.write([item]);
+            
+            btn.style.color = '#10b981';
+            btn.style.borderColor = '#10b981';
+            btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Copied!';
+        }} catch(e) {{
+            console.error(e);
+            btn.innerHTML = '❌ Gagal (Gunakan Download)';
+        }}
+        setTimeout(() => {{
+            btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> {label}';
+            btn.style.color = '#7c8ff7';
+            btn.style.borderColor = 'rgba(124, 143, 247, 0.5)';
+        }}, 2000);
+    }}
+    </script>
+    """
+    components.html(html_code, height=35)
+
+
 def table_to_png(df: pd.DataFrame, title: str = "", max_rows: int = 30) -> bytes:
     """
     Render a pandas DataFrame as a styled table PNG using matplotlib.

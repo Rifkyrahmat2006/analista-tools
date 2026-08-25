@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.pivot_analysis import single_choice_analysis, scale_analysis
 from utils.multi_select_analysis import multi_choice_analysis, get_multiple_choice_preview
-from utils.export_helpers import table_to_png
+from utils.export_helpers import table_to_png, render_copy_button
 from utils.text_analysis import analyze_text_column, get_top_keywords, generate_wordcloud
 from utils.theme import inject_theme_css, get_light_plotly_layout, render_sidebar_footer, render_page_footer
 from utils.auth import render_user_badge_sidebar
@@ -143,63 +143,9 @@ def df_to_xlsx(df: pd.DataFrame) -> bytes:
         df.to_excel(writer, index=False)
     return buf.getvalue()
 
-def render_copy_button(png_bytes: bytes, label: str = "Copy PNG", key: str = "copy"):
-    import base64
-    import streamlit.components.v1 as components
-    b64_img = base64.b64encode(png_bytes).decode('utf-8')
-    safe_key = key.replace(" ", "_").lower()
-    html_code = f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600&display=swap');
-    body {{ margin: 0; padding: 0; display: flex; justify-content: flex-start; }}
-    button {{
-        background-color: transparent;
-        border: 1px solid rgba(124, 143, 247, 0.5);
-        color: #7c8ff7;
-        padding: 0.4rem 1rem;
-        border-radius: 6px;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.1s ease;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }}
-    button:hover {{ border-color: #7c8ff7; background-color: rgba(124, 143, 247, 0.15); }}
-    .icon {{ width: 16px; height: 16px; fill: currentColor; }}
-    </style>
-    <button id="btn_{safe_key}" onclick="copyImg_{safe_key}()">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-        <span id="txt_{safe_key}">{label}</span>
-    </button>
-    <script>
-    async function copyImg_{safe_key}() {{
-        const btn = document.getElementById('btn_{safe_key}');
-        try {{
-            const res = await fetch('data:image/png;base64,{b64_img}');
-            const blob = await res.blob();
-            const item = new ClipboardItem({{ [blob.type]: blob }});
-            await navigator.clipboard.write([item]);
-            
-            btn.style.color = '#10b981';
-            btn.style.borderColor = '#10b981';
-            btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Copied!';
-        }} catch(e) {{
-            console.error(e);
-            btn.innerHTML = '❌ Gagal (Gunakan Download)';
-        }}
-        setTimeout(() => {{
-            btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> {label}';
-            btn.style.color = '#7c8ff7';
-            btn.style.borderColor = 'rgba(124, 143, 247, 0.5)';
-        }}, 2000);
-    }}
-    </script>
-    """
-    components.html(html_code, height=35)
+# render_copy_button() dipindah ke utils/export_helpers.py supaya bisa
+# dipakai ulang di halaman lain (Pembagian Tugas / Tugas Saya) tanpa
+# duplikasi kode — lihat import di atas.
 
 def compute_dynamic_margin(
     chart_type: str,
