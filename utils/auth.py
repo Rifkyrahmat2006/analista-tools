@@ -337,8 +337,24 @@ def render_login_form() -> None:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
         with st.form("login_form"):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
+            # PENTING (root cause bug dilaporkan user): Chrome/browser
+            # menentukan apakah ini form LOGIN (tawarkan isi otomatis dari
+            # Password Manager saat username diklik) atau form SIGNUP/GANTI
+            # PASSWORD (autocomplete="new-password") berdasarkan atribut
+            # HTML `autocomplete` di tiap input. Sebelumnya field ini TIDAK
+            # diberi autocomplete eksplisit sama sekali -- Streamlit
+            # defaultnya memberi autocomplete="new-password" untuk
+            # type="password" (dirancang utk form ganti/buat password
+            # baru), field Username juga tanpa petunjuk "username" -- jadi
+            # Chrome salah menganggap ini form ganti-password, BUKAN
+            # login, dan tidak menawarkan dropdown kredensial saat username
+            # diklik (baru muncul di password krn Chrome tetap punya
+            # fallback manual "kunci" utk field password apapun).
+            # Fix: autocomplete="username" & "current-password" adalah
+            # kata kunci standar HTML utk form LOGIN (bukan signup) --
+            # ini memicu Chrome tawarkan autofill di KEDUA field.
+            username = st.text_input("Username", autocomplete="username")
+            password = st.text_input("Password", type="password", autocomplete="current-password")
             submitted = st.form_submit_button("Masuk", use_container_width=True, type="primary", icon=":material/login:")
 
             if submitted:
