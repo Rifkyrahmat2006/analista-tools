@@ -441,7 +441,14 @@ with tab_charts:
                             val_col=val_col, 
                             count_col=count_col, 
                             colors=colors, 
-                            title=chart_title, 
+                            # PERMINTAAN USER: gambar statis TIDAK pakai
+                            # judul secara default -- title cuma diisi
+                            # kalau user mengisi "Override Judul" (custom_title
+                            # non-kosong). Sebelumnya di sini pakai
+                            # chart_title, yg selalu berisi fallback spt
+                            # "Bar Chart - Fakultas" kalau custom_title
+                            # kosong -- itu yg bikin judul selalu muncul.
+                            title=custom_title.strip(),
                             solid_color=solid_color if use_solid_color else None,
                             text_col="_text" if "_text" in result.columns else None
                         )

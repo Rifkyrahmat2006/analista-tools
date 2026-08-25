@@ -352,12 +352,17 @@ def generate_matplotlib_chart(chart_type, df, val_col, count_col, colors, title,
         ax.plot(labels, df[count_col], color=colors[0] if colors else "#6366f1", marker='o', linewidth=2)
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels, rotation=45, ha="right", color=text_color)
-    elif chart_type == "Treemap":
-        # Treemap fallback
+    if chart_type == "Treemap":
         bars = ax.barh(labels, df[count_col], color=colors)
-        ax.set_title(title + " (Fallback to Bar Chart)", fontsize=14, pad=20, color=text_color)
-        
-    if chart_type != "Treemap":
+        treemap_note = "(Fallback to Bar Chart)"
+        ax.set_title(f"{title} {treemap_note}" if title else treemap_note, fontsize=14, pad=20, color=text_color)
+    elif title:
+        # PERMINTAAN USER: gambar statis (PNG copy-paste) TIDAK pakai
+        # judul secara default -- title cuma digambar kalau caller kasih
+        # nilai non-kosong (caller mengisi ini HANYA saat user mengisi
+        # "Override Judul" di panel pengaturan, lihat pages/4_visualization.py
+        # & pages/6_pembagian_tugas.py: title=custom_title jika diisi,
+        # else title="" -- BUKAN chart_title default spt "Bar Chart - Fakultas").
         ax.set_title(title, fontsize=14, pad=20, color=text_color)
         
     ax.spines['top'].set_visible(False)

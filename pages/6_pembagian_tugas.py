@@ -358,7 +358,16 @@ with tab_my:
                             png_bytes = generate_matplotlib_chart(
                                 chart_type=picked_chart, df=built["result"],
                                 val_col=built["val_col"], count_col=built["count_col"],
-                                colors=built["colors"], title=chart_title,
+                                colors=built["colors"],
+                                # PERMINTAAN USER: gambar statis TIDAK pakai
+                                # judul secara default -- title cuma diisi
+                                # kalau user mengisi "Override Judul"
+                                # (custom_title non-kosong). Sebelumnya di
+                                # sini pakai chart_title, yg selalu berisi
+                                # fallback spt "Pie Chart - Fakultas" kalau
+                                # custom_title kosong -- itu yg bikin judul
+                                # selalu muncul.
+                                title=custom_title.strip(),
                                 solid_color=solid_color if use_solid_color else None,
                                 text_col="_text" if "_text" in built["result"].columns else None,
                             )
