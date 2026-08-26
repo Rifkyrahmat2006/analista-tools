@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 import sys
 from pathlib import Path
 
@@ -6,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.theme import inject_theme_css, render_sidebar_footer, render_page_footer
 from utils.auth import require_login, render_user_badge_sidebar
+from utils.db import init_db, get_dashboard_summary, format_relative_time
 
 st.set_page_config(
     page_title="Analista Tools",
@@ -17,69 +20,121 @@ inject_theme_css()
 
 current_user = require_login()
 render_user_badge_sidebar()
+init_db()
 
-# --------------- Hero Section ---------------
-st.markdown("""
-<div class="hero-container">
-    <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-        <h1 style="margin: 0; color: white !important;">Analista Tools</h1>
-    </div>
-    <p>Upload, bersihkan, analisis, dan visualisasikan data survei Anda dengan mudah</p>
-</div>
-""", unsafe_allow_html=True)
+# Label & pembersih detail utk baris Aktivitas Terbaru -- murni
+# presentational, tidak perlu masuk utils/db.py (bukan logic bisnis).
+ACTION_LABELS = {
+    "login": ":material/login: Login",
+    "logout": ":material/logout: Logout",
+    "assign_question": ":material/assignment: Assign pertanyaan",
+    "update_assignment": ":material/edit: Update tugas",
+    "register_questions": ":material/auto_awesome: Deteksi pertanyaan",
+    "upload_dataset": ":material/upload: Upload dataset",
+    "reset_password": ":material/key: Reset password",
+    "create_user": ":material/person_add: Buat user baru",
+    "deactivate_user": ":material/person_off: Nonaktifkan user",
+}
 
-# --------------- Feature Cards ---------------
-st.markdown("### :material/stars: Fitur Utama")
-st.markdown("")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+def _clean_detail(detail: str, max_len: int = 60) -> str:
+    if not detail:
+        return ""
+    flat = " ".join(detail.split())  # gabung newline/spasi ganda jadi 1 baris
+    return flat if len(flat) <= max_len else flat[:max_len].rstrip() + "..."
 
-features = [
-    ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>', "Upload Data", "Upload CSV atau Excel langsung dari Google Form export"),
-    ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>', "Data Cleaning", "Edit, hapus, rename, dan bersihkan data dengan mudah"),
-    ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>', "Analisis", "Analisis otomatis berdasarkan tipe pertanyaan survei"),
-    ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>', "Visualisasi", "Chart interaktif: bar, pie, donut, treemap, wordcloud"),
-    ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>', "Wordcloud", "Wordcloud terintegrasi di tab Visualisasi"),
-]
 
-for col, (icon, title, desc) in zip([col1, col2, col3, col4, col5], features):
-    with col:
-        st.markdown(f"""
-        <div class="feature-card">
-            <div class="feature-icon">{icon}</div>
-            <div class="feature-title">{title}</div>
-            <div class="feature-desc">{desc}</div>
-        </div>
-        """, unsafe_allow_html=True)
+dataset_name = st.session_state.get("dataset_name")
+summary = get_dashboard_summary(dataset_name)
 
-st.markdown("")
-st.markdown("")
+# --------------- Header ringkas ---------------
+st.markdown("# :material/dashboard: Dashboard")
+st.caption(f"Selamat datang, **{current_user['full_name']}** — ringkasan kondisi Analista Tools saat ini.")
 
-# --------------- Pipeline ---------------
-st.markdown("### :material/sync: Alur Kerja")
-st.markdown("")
+if not dataset_name:
+    st.warning(
+        ":material/warning: Belum ada dataset aktif. Upload dataset di halaman "
+        "**Upload Data** untuk melihat ringkasan lengkap sesuai dataset itu "
+        "(ringkasan di bawah ini masih menampilkan data GLOBAL lintas semua dataset)."
+    )
 
-steps = ["Upload Dataset", "Preview Data", "Data Cleaning", "Konfigurasi Tipe", "Analisis", "Visualisasi"]
-pipeline_html = ""
-for i, step in enumerate(steps):
-    pipeline_html += f'<span class="pipeline-step">{step}</span>'
-    if i < len(steps) - 1:
-        pipeline_html += '<span class="pipeline-arrow">→</span>'
+st.markdown("---")
 
-st.markdown(f'<div style="text-align:center; padding: 1rem 0;">{pipeline_html}</div>', unsafe_allow_html=True)
+# --------------- Metric cards ringkas ---------------
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total Pertanyaan", summary["total_questions"])
+c2.metric("Sudah Ditugaskan", summary["total_assigned"])
+c3.metric("Belum Ditugaskan", summary["total_unassigned"])
+c4.metric("Anggota Tim Aktif", summary["total_active_users"])
 
-st.markdown("")
+st.markdown("---")
 
-# --------------- Quick Start ---------------
-st.markdown("### :material/rocket_launch: Mulai Cepat")
-st.markdown("""
-1. Buka halaman **:material/upload: Upload Data** di sidebar
-2. Upload file CSV atau Excel dari Google Form
-3. Bersihkan data di halaman **:material/cleaning_services: Data Cleaning**
-4. Konfigurasi tipe pertanyaan dan jalankan analisis di **:material/trending_up: Analysis**
-5. Lihat visualisasi & generate **:material/cloud: Wordcloud** di **:material/bar_chart: Visualization**
-""")
+# --------------- Progres Tugas (donut) + Breakdown Tim (bar) ---------------
+col_progress, col_team = st.columns(2)
+
+with col_progress:
+    st.markdown("### :material/pie_chart: Progres Pembagian Tugas")
+    status_df = pd.DataFrame([
+        {"Status": "Belum Dikerjakan", "Jumlah": summary["status_counts"]["belum_dikerjakan"]},
+        {"Status": "Dikerjakan", "Jumlah": summary["status_counts"]["dikerjakan"]},
+        {"Status": "Selesai", "Jumlah": summary["status_counts"]["selesai"]},
+    ])
+    if status_df["Jumlah"].sum() > 0:
+        fig = px.pie(
+            status_df, names="Status", values="Jumlah", hole=0.5,
+            color="Status",
+            color_discrete_map={
+                "Belum Dikerjakan": "#94a3b8",
+                "Dikerjakan": "#fbbf24",
+                "Selesai": "#34d399",
+            },
+        )
+        fig.update_layout(height=300, margin=dict(t=20, b=20, l=20, r=20))
+        st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    else:
+        st.info("Belum ada pertanyaan yang ditugaskan.")
+
+with col_team:
+    st.markdown("### :material/groups: Anggota Tim per Role")
+    team_df = pd.DataFrame([
+        {"Role": k.capitalize(), "Jumlah": v} for k, v in summary["users_by_role"].items()
+    ])
+    fig2 = px.bar(team_df, x="Role", y="Jumlah", color="Role", text="Jumlah")
+    fig2.update_layout(height=300, margin=dict(t=20, b=20, l=20, r=20), showlegend=False)
+    st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False})
+
+st.markdown("---")
+
+# --------------- Aktivitas Terbaru ---------------
+st.markdown("### :material/history: Aktivitas Terbaru")
+if summary["recent_activity"]:
+    for act in summary["recent_activity"]:
+        label = ACTION_LABELS.get(act["action"], act["action"])
+        detail_txt = _clean_detail(act.get("detail", ""))
+        time_txt = format_relative_time(act["timestamp"])
+        detail_suffix = f": _{detail_txt}_" if detail_txt else ""
+        st.markdown(
+            f"**{act['username']}** — {label}{detail_suffix}  \n"
+            f"<span style='font-size:0.78rem;opacity:0.6;'>{time_txt}</span>",
+            unsafe_allow_html=True,
+        )
+else:
+    st.caption("Belum ada aktivitas tercatat.")
+
+st.markdown("---")
+
+# --------------- Quick Links (pengganti "Mulai Cepat") ---------------
+st.markdown("### :material/rocket_launch: Quick Links")
+qc1, qc2, qc3 = st.columns(3)
+with qc1:
+    if st.button(":material/upload: Upload Data", use_container_width=True):
+        st.switch_page("pages/1_upload_data.py")
+with qc2:
+    if st.button(":material/assignment: Pembagian Tugas", use_container_width=True):
+        st.switch_page("pages/6_pembagian_tugas.py")
+with qc3:
+    if st.button(":material/bar_chart: Visualization", use_container_width=True):
+        st.switch_page("pages/4_visualization.py")
 
 # --------------- Session State Info ---------------
 with st.sidebar:

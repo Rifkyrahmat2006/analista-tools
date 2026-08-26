@@ -539,6 +539,91 @@ def get_my_assignments(user_id: int) -> List[Dict]:
         return [dict(r) for r in cur.fetchall()]
 
 
+def get_dashboard_summary(dataset_name: Optional[str] = None) -> Dict:
+    """
+    Ringkasan angka untuk dashboard (halaman app.py). Satu query batch,
+    bukan dipanggil terpisah per angka -- hindari round-trip DB berlebih
+    tiap kali dashboard di-render.
+
+    Return dict:
+        total_questions, total_assigned, total_unassigned,
+        status_counts: {"belum_dikerjakan": N, "dikerjakan": N, "selesai": N},
+        users_by_role: {"superadmin": N, "admin": N, "staff": N},
+        total_active_users,
+        recent_activity: list[dict] (8 baris terbaru dari audit_log)
+    """
+    with db_cursor() as cur:
+        if dataset_name:
+            cur.execute(
+                "SELECT COUNT(*) as n FROM survey_questions WHERE dataset_name = %s",
+                (dataset_name,),
+            )
+            total_questions = cur.fetchone()["n"]
+
+            cur.execute(
+                """SELECT a.status, COUNT(*) as n FROM assignments a
+                   JOIN survey_questions sq ON sq.id = a.question_id
+                   WHERE sq.dataset_name = %s GROUP BY a.status""",
+                (dataset_name,),
+            )
+        else:
+            # Belum ada dataset aktif dipilih (mis. user baru login belum
+            # upload apapun) -- fallback ke ringkasan GLOBAL (semua
+            # dataset) supaya dashboard tetap meaningful, bukan crash /
+            # kosong total.
+            total_questions = 0
+            cur.execute("SELECT status, COUNT(*) as n FROM assignments GROUP BY status")
+
+        status_counts = {"belum_dikerjakan": 0, "dikerjakan": 0, "selesai": 0}
+        total_assigned = 0
+        for row in cur.fetchall():
+            status_counts[row["status"]] = row["n"]
+            total_assigned += row["n"]
+
+        total_unassigned = max(0, total_questions - total_assigned)
+
+        cur.execute("SELECT role, COUNT(*) as n FROM users WHERE active = TRUE GROUP BY role")
+        users_by_role = {"superadmin": 0, "admin": 0, "staff": 0}
+        for row in cur.fetchall():
+            users_by_role[row["role"]] = row["n"]
+        total_active_users = sum(users_by_role.values())
+
+        cur.execute(
+            "SELECT username, action, detail, timestamp FROM audit_log ORDER BY id DESC LIMIT 8"
+        )
+        recent_activity = [dict(r) for r in cur.fetchall()]
+
+    return {
+        "total_questions": total_questions,
+        "total_assigned": total_assigned,
+        "total_unassigned": total_unassigned,
+        "status_counts": status_counts,
+        "users_by_role": users_by_role,
+        "total_active_users": total_active_users,
+        "recent_activity": recent_activity,
+    }
+
+
+def format_relative_time(iso_timestamp: str) -> str:
+    """'2026-08-25T22:02:45+00:00' -> '5 menit lalu' / '2 jam lalu' / '3 hari lalu'."""
+    try:
+        ts = datetime.fromisoformat(iso_timestamp)
+    except (ValueError, TypeError):
+        return iso_timestamp or "-"
+    now = datetime.now(timezone.utc)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    delta = now - ts
+    seconds = delta.total_seconds()
+    if seconds < 60:
+        return "Baru saja"
+    if seconds < 3600:
+        return f"{int(seconds // 60)} menit lalu"
+    if seconds < 86400:
+        return f"{int(seconds // 3600)} jam lalu"
+    return f"{int(seconds // 86400)} hari lalu"
+
+
 # ─────────────────────────────────────────────────────────────
 # ROLE PERMISSIONS (RBAC dinamis — bisa diedit superadmin lewat UI)
 # ─────────────────────────────────────────────────────────────
