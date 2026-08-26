@@ -539,18 +539,23 @@ def get_my_assignments(user_id: int) -> List[Dict]:
         return [dict(r) for r in cur.fetchall()]
 
 
-def get_dashboard_summary(dataset_name: Optional[str] = None) -> Dict:
+def get_dashboard_summary(dataset_name: Optional[str] = None, include_activity: bool = True) -> Dict:
     """
     Ringkasan angka untuk dashboard (halaman app.py). Satu query batch,
     bukan dipanggil terpisah per angka -- hindari round-trip DB berlebih
     tiap kali dashboard di-render.
+
+    include_activity: kalau False, skip query audit_log sepenuhnya --
+    dipakai utk role yg TIDAK BOLEH melihat Aktivitas Terbaru (staff).
+    Ini privasi berlapis: bukan cuma disembunyikan di UI, datanya memang
+    tidak pernah diambil dari DB sama sekali utk role yang tidak berhak.
 
     Return dict:
         total_questions, total_assigned, total_unassigned,
         status_counts: {"belum_dikerjakan": N, "dikerjakan": N, "selesai": N},
         users_by_role: {"superadmin": N, "admin": N, "staff": N},
         total_active_users,
-        recent_activity: list[dict] (8 baris terbaru dari audit_log)
+        recent_activity: list[dict] (8 baris terbaru dari audit_log, [] kalau include_activity=False)
     """
     with db_cursor() as cur:
         if dataset_name:
@@ -588,10 +593,12 @@ def get_dashboard_summary(dataset_name: Optional[str] = None) -> Dict:
             users_by_role[row["role"]] = row["n"]
         total_active_users = sum(users_by_role.values())
 
-        cur.execute(
-            "SELECT username, action, detail, timestamp FROM audit_log ORDER BY id DESC LIMIT 8"
-        )
-        recent_activity = [dict(r) for r in cur.fetchall()]
+        recent_activity = []
+        if include_activity:
+            cur.execute(
+                "SELECT username, action, detail, timestamp FROM audit_log ORDER BY id DESC LIMIT 8"
+            )
+            recent_activity = [dict(r) for r in cur.fetchall()]
 
     return {
         "total_questions": total_questions,

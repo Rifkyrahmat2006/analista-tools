@@ -45,7 +45,10 @@ def _clean_detail(detail: str, max_len: int = 60) -> str:
 
 
 dataset_name = st.session_state.get("dataset_name")
-summary = get_dashboard_summary(dataset_name)
+# Query audit_log CUMA diambil kalau role berhak lihat Aktivitas Terbaru
+# (superadmin/admin) -- privasi berlapis, bukan cuma disembunyikan di UI.
+can_view_activity = current_user["role"] in ("superadmin", "admin")
+summary = get_dashboard_summary(dataset_name, include_activity=can_view_activity)
 
 # --------------- Header ringkas ---------------
 st.markdown("# :material/dashboard: Dashboard")
@@ -106,22 +109,27 @@ with col_team:
 st.markdown("---")
 
 # --------------- Aktivitas Terbaru ---------------
-st.markdown("### :material/history: Aktivitas Terbaru")
-if summary["recent_activity"]:
-    for act in summary["recent_activity"]:
-        label = ACTION_LABELS.get(act["action"], act["action"])
-        detail_txt = _clean_detail(act.get("detail", ""))
-        time_txt = format_relative_time(act["timestamp"])
-        detail_suffix = f": _{detail_txt}_" if detail_txt else ""
-        st.markdown(
-            f"**{act['username']}** — {label}{detail_suffix}  \n"
-            f"<span style='font-size:0.78rem;opacity:0.6;'>{time_txt}</span>",
-            unsafe_allow_html=True,
-        )
-else:
-    st.caption("Belum ada aktivitas tercatat.")
+# PERMINTAAN USER: hanya superadmin & admin yang boleh lihat section ini
+# (staff tidak perlu tahu histori aktivitas semua orang di sistem, cukup
+# tugas & progres miliknya sendiri -- konsisten dgn RBAC project ini yg
+# staff selalu dibatasi ke scope "milik sendiri", lihat utils/permissions.py).
+if can_view_activity:
+    st.markdown("### :material/history: Aktivitas Terbaru")
+    if summary["recent_activity"]:
+        for act in summary["recent_activity"]:
+            label = ACTION_LABELS.get(act["action"], act["action"])
+            detail_txt = _clean_detail(act.get("detail", ""))
+            time_txt = format_relative_time(act["timestamp"])
+            detail_suffix = f": _{detail_txt}_" if detail_txt else ""
+            st.markdown(
+                f"**{act['username']}** — {label}{detail_suffix}  \n"
+                f"<span style='font-size:0.78rem;opacity:0.6;'>{time_txt}</span>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.caption("Belum ada aktivitas tercatat.")
 
-st.markdown("---")
+    st.markdown("---")
 
 # --------------- Quick Links (pengganti "Mulai Cepat") ---------------
 st.markdown("### :material/rocket_launch: Quick Links")
